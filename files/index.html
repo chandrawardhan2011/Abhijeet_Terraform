@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CYBERRANGE // INFRA CONTROL</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;700;900&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:        #050a12;
+  --panel:     #080f1c;
+  --border:    #0d2840;
+  --accent:    #00c8ff;
+  --accent2:   #00ff9d;
+  --warn:      #ff4560;
+  --muted:     #1a3a55;
+  --text:      #c8e8ff;
+  --text-dim:  #4a7a9b;
+  --glow:      0 0 18px rgba(0,200,255,0.35);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Rajdhani', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,200,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,200,255,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+header {
+  position: relative; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 36px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(5,10,18,0.9);
+  backdrop-filter: blur(12px);
+}
+
+.hdr-logo { display: flex; align-items: center; gap: 12px; }
+.hex-icon { width: 42px; height: 42px; position: relative; flex-shrink: 0; }
+.hex-icon svg { width: 100%; height: 100%; }
+
+.hdr-title {
+  font-family: 'Exo 2', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: 4px;
+  color: var(--accent); text-transform: uppercase; line-height: 1.2;
+}
+.hdr-sub {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px; color: var(--text-dim); letter-spacing: 2px; margin-top: 2px;
+}
+
+.hdr-status { display: flex; align-items: center; gap: 24px; }
+
+.status-pill {
+  display: flex; align-items: center; gap: 7px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; letter-spacing: 1px; color: var(--text-dim);
+}
+
+.pulse-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent2); box-shadow: 0 0 8px var(--accent2);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(0.75); }
+}
+
+.clock {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px; color: var(--accent); letter-spacing: 2px;
+}
+
+main {
+  position: relative; z-index: 10;
+  padding: 28px 36px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px; padding: 22px 24px;
+  position: relative; overflow: hidden;
+}
+.panel::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.7;
+}
+
+.panel-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px; letter-spacing: 3px; color: var(--text-dim);
+  text-transform: uppercase; margin-bottom: 18px;
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+.vm-cards { grid-column: 1 / 3; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+.vm-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 4px; padding: 24px;
+  position: relative; overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.vm-card::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.vm-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--glow), inset 0 0 30px rgba(0,200,255,0.04);
+}
+
+.vm-card-inner { display: flex; align-items: center; gap: 20px; }
+
+.vm-icon {
+  width: 64px; height: 64px; object-fit: contain;
+  filter: drop-shadow(0 0 12px rgba(0,200,255,0.4));
+  flex-shrink: 0;
+  transition: filter 0.3s, transform 0.3s;
+}
+.vm-card:hover .vm-icon {
+  filter: drop-shadow(0 0 20px rgba(0,200,255,0.7));
+  transform: scale(1.06);
+}
+
+.vm-info { flex: 1; }
+.vm-name {
+  font-family: 'Exo 2', sans-serif; font-weight: 700; font-size: 18px;
+  color: var(--accent); letter-spacing: 2px; text-transform: uppercase;
+}
+.vm-desc {
+  font-size: 11px; color: var(--text-dim);
+  font-family: 'Share Tech Mono', monospace; letter-spacing: 1px; margin-top: 2px;
+}
+
+.vm-input-wrap { margin-top: 14px; display: flex; align-items: center; gap: 12px; }
+.vm-input-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px; color: var(--text-dim); letter-spacing: 2px;
+}
+
+.vm-input {
+  width: 80px;
+  background: rgba(0,200,255,0.06);
+  border: 1px solid var(--muted); border-radius: 3px;
+  color: var(--accent);
+  font-family: 'Share Tech Mono', monospace; font-size: 22px; font-weight: bold;
+  text-align: center; padding: 6px 8px; outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.vm-input:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,200,255,0.3); }
+.vm-input::-webkit-outer-spin-button,
+.vm-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.vm-input[type=number] { -moz-appearance: textfield; }
+
+.step-btns { display: flex; flex-direction: column; gap: 3px; }
+.step-btn {
+  width: 24px; height: 22px;
+  background: var(--muted); border: 1px solid var(--border); border-radius: 2px;
+  color: var(--accent); font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s; line-height: 1;
+}
+.step-btn:hover { background: var(--accent); color: var(--bg); }
+
+.action-row {
+  grid-column: 1 / 3;
+  display: flex; gap: 16px; justify-content: center;
+}
+
+.btn {
+  font-family: 'Exo 2', sans-serif; font-weight: 700;
+  font-size: 13px; letter-spacing: 4px; text-transform: uppercase;
+  padding: 14px 48px; border: none; border-radius: 3px; cursor: pointer;
+  position: relative; overflow: hidden;
+  transition: transform 0.15s, box-shadow 0.3s;
+}
+.btn::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.15) 50%, transparent 70%);
+  transform: translateX(-100%); transition: transform 0.5s;
+}
+.btn:hover::after { transform: translateX(100%); }
+.btn:active { transform: scale(0.97); }
+
+/* FIX: disabled state — prevent double-clicks during active operation */
+.btn:disabled {
+  opacity: 0.4; cursor: not-allowed; transform: none !important;
+}
+.btn:disabled::after { display: none; }
+
+.btn-deploy { background: linear-gradient(135deg, #006630, #00cc66); color: #fff; box-shadow: 0 0 20px rgba(0,204,102,0.4); }
+.btn-deploy:not(:disabled):hover { box-shadow: 0 0 30px rgba(0,204,102,0.7); transform: translateY(-2px); }
+.btn-destroy { background: linear-gradient(135deg, #660018, #ff1a40); color: #fff; box-shadow: 0 0 20px rgba(255,26,64,0.4); }
+.btn-destroy:not(:disabled):hover { box-shadow: 0 0 30px rgba(255,26,64,0.7); transform: translateY(-2px); }
+
+.progress-panel { grid-column: 1 / 3; }
+
+.progress-inner {
+  display: grid; grid-template-columns: 200px 1fr;
+  gap: 28px; align-items: start;
+}
+
+.radial-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.radial { position: relative; width: 140px; height: 140px; }
+.radial svg { width: 140px; height: 140px; transform: rotate(-90deg); }
+
+.radial-bg { fill: none; stroke: var(--muted); stroke-width: 8; }
+.radial-fill {
+  fill: none; stroke: var(--accent); stroke-width: 8; stroke-linecap: round;
+  /* FIX: exact circumference = 2 * PI * 60 = 376.991 — use precise value */
+  stroke-dasharray: 376.991;
+  stroke-dashoffset: 376.991;
+  transition: stroke-dashoffset 0.6s ease;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+.radial-text {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.radial-pct {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 28px; font-weight: bold; color: var(--accent); line-height: 1;
+}
+.radial-sub {
+  font-size: 9px; letter-spacing: 2px; color: var(--text-dim);
+  font-family: 'Share Tech Mono', monospace;
+}
+
+.vm-counts { display: flex; gap: 12px; }
+.count-box {
+  background: rgba(0,200,255,0.05); border: 1px solid var(--border);
+  border-radius: 3px; padding: 10px 16px; text-align: center; flex: 1;
+}
+.count-num { font-family: 'Share Tech Mono', monospace; font-size: 26px; color: var(--accent); }
+.count-lbl {
+  font-size: 9px; letter-spacing: 2px; color: var(--text-dim);
+  font-family: 'Share Tech Mono', monospace; margin-top: 2px;
+}
+
+.prog-right { display: flex; flex-direction: column; gap: 14px; }
+
+.bar-wrap { position: relative; height: 6px; background: var(--muted); border-radius: 3px; overflow: hidden; }
+.bar-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--accent2), var(--accent));
+  border-radius: 3px; transition: width 0.5s ease;
+  box-shadow: 0 0 10px var(--accent);
+}
+.bar-label {
+  display: flex; justify-content: space-between;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px; color: var(--text-dim); letter-spacing: 1px;
+}
+
+.phase-indicators { display: flex; gap: 6px; }
+.phase {
+  flex: 1; height: 28px; border: 1px solid var(--border); border-radius: 2px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Share Tech Mono', monospace; font-size: 8px; letter-spacing: 1px;
+  color: var(--text-dim);
+  transition: background 0.4s, color 0.4s, border-color 0.4s;
+}
+.phase.active { background: rgba(0,200,255,0.12); border-color: var(--accent); color: var(--accent); }
+.phase.done   { background: rgba(0,255,157,0.08);  border-color: var(--accent2); color: var(--accent2); }
+
+.tf-panel { grid-column: 1 / -1; }
+.tf-header-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+
+#tfLogo {
+  width: 32px; height: 32px; object-fit: contain;
+  filter: drop-shadow(0 0 6px rgba(0,200,255,0.5));
+  transition: filter 0.3s;
+}
+
+@keyframes rotateLogo {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.tf-running  { animation: rotateLogo 1.2s linear infinite; }
+.tf-complete { filter: drop-shadow(0 0 14px #00ff9d) !important; animation: none; }
+
+.terminal {
+  background: #020912; border: 1px solid var(--border);
+  border-radius: 3px; padding: 14px 16px; height: 220px;
+  overflow-y: auto;
+  font-family: 'Share Tech Mono', monospace; font-size: 12px;
+  color: #5af78e; line-height: 1.6;
+  scrollbar-width: thin; scrollbar-color: var(--muted) transparent;
+}
+.terminal::-webkit-scrollbar { width: 4px; }
+.terminal::-webkit-scrollbar-track { background: transparent; }
+.terminal::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+
+.log-line { padding: 1px 0; }
+.log-line.err { color: var(--warn); }
+.log-line.ok  { color: var(--accent2); }
+.log-line.dim { color: var(--text-dim); }
+
+.status-panel { grid-column: 1 / -1; }
+
+.vm-table { width: 100%; border-collapse: collapse; }
+.vm-table th {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px; letter-spacing: 3px; color: var(--text-dim);
+  padding: 8px 14px; border-bottom: 1px solid var(--border);
+  text-align: left; text-transform: uppercase;
+}
+.vm-table td {
+  font-family: 'Share Tech Mono', monospace; font-size: 12px;
+  padding: 10px 14px; border-bottom: 1px solid rgba(13,40,64,0.5);
+  color: var(--text); transition: background 0.2s;
+}
+.vm-table tr:hover td { background: rgba(0,200,255,0.04); }
+
+.status-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 2px;
+  font-size: 10px; letter-spacing: 1px; font-weight: 600;
+}
+.badge-running { background: rgba(0,255,157,0.1); border: 1px solid var(--accent2); color: var(--accent2); }
+.badge-stopped { background: rgba(255,69,96,0.1);  border: 1px solid var(--warn);    color: var(--warn); }
+.badge-other   { background: rgba(74,122,155,0.15); border: 1px solid var(--text-dim); color: var(--text-dim); }
+
+.no-data { text-align: center; color: var(--text-dim); font-size: 11px; letter-spacing: 2px; padding: 24px; }
+
+.corner-tl, .corner-br {
+  position: absolute; width: 14px; height: 14px;
+  border-color: var(--accent); border-style: solid; opacity: 0.5;
+}
+.corner-tl { top: 8px; left: 8px; border-width: 1px 0 0 1px; }
+.corner-br { bottom: 8px; right: 8px; border-width: 0 1px 1px 0; }
+
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(5,10,18,0.85); backdrop-filter: blur(8px);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.25s;
+}
+.modal-overlay.show { opacity: 1; pointer-events: all; }
+
+.modal {
+  background: var(--panel); border: 1px solid var(--warn);
+  border-radius: 4px; padding: 32px 40px; max-width: 420px;
+  position: relative; box-shadow: 0 0 40px rgba(255,69,96,0.3);
+}
+.modal::before {
+  content:""; position:absolute; top:0;left:0;right:0;height:2px;
+  background: linear-gradient(90deg, transparent, var(--warn), transparent);
+}
+.modal-title {
+  font-family: 'Exo 2', sans-serif; font-size: 18px; font-weight: 900;
+  color: var(--warn); letter-spacing: 3px; margin-bottom: 10px;
+}
+.modal-body {
+  font-family: 'Share Tech Mono', monospace; font-size: 12px;
+  color: var(--text-dim); line-height: 1.7; margin-bottom: 24px;
+}
+.modal-btns { display: flex; gap: 12px; }
+.modal-btn {
+  flex: 1; padding: 11px;
+  font-family: 'Exo 2', sans-serif; font-weight: 700;
+  font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
+  border: none; border-radius: 3px; cursor: pointer; transition: 0.2s;
+}
+.modal-cancel { background: var(--muted); color: var(--text); }
+.modal-cancel:hover { background: var(--border); }
+.modal-confirm { background: var(--warn); color: #fff; }
+.modal-confirm:hover { background: #ff1a40; }
+</style>
+</head>
+<body>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <div class="corner-tl"></div><div class="corner-br"></div>
+    <div class="modal-title">⚠ CONFIRM DESTROY</div>
+    <div class="modal-body">
+      This will terminate ALL running VMs and destroy the Terraform state.<br>
+      This action <strong style="color:var(--warn)">cannot be undone.</strong>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-btn modal-cancel" onclick="closeModal()">CANCEL</button>
+      <button class="modal-btn modal-confirm" onclick="confirmDestroy()">DESTROY ALL</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="hdr-logo">
+    <div class="hex-icon">
+      <svg viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="21,2 38,11 38,31 21,40 4,31 4,11" stroke="#00c8ff" stroke-width="1.5" fill="rgba(0,200,255,0.06)"/>
+        <polygon points="21,8 34,15 34,27 21,34 8,27 8,15" stroke="#00c8ff" stroke-width="0.5" fill="none" opacity="0.4"/>
+        <circle cx="21" cy="21" r="4" fill="#00c8ff" opacity="0.8"/>
+        <line x1="21" y1="8" x2="21" y2="14" stroke="#00c8ff" stroke-width="1" opacity="0.5"/>
+        <line x1="21" y1="28" x2="21" y2="34" stroke="#00c8ff" stroke-width="1" opacity="0.5"/>
+        <line x1="8"  y1="15" x2="13" y2="18" stroke="#00c8ff" stroke-width="1" opacity="0.5"/>
+        <line x1="29" y1="24" x2="34" y2="27" stroke="#00c8ff" stroke-width="1" opacity="0.5"/>
+      </svg>
+    </div>
+    <div>
+      <div class="hdr-title">CyberRange</div>
+      <div class="hdr-sub">INFRA CONTROL CENTER // v2.4.1</div>
+    </div>
+  </div>
+  <div class="hdr-status">
+    <div class="status-pill"><div class="pulse-dot"></div>PROXMOX ONLINE</div>
+    <div class="status-pill" style="color:var(--accent2)">
+      <div class="pulse-dot" style="background:var(--accent2);box-shadow:0 0 8px var(--accent2)"></div>
+      TERRAFORM READY
+    </div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<main>
+
+  <div class="vm-cards">
+    <div class="vm-card">
+      <div class="corner-tl"></div><div class="corner-br"></div>
+      <div class="panel-label">TARGET NODE — WINDOWS</div>
+      <div class="vm-card-inner">
+        <img class="vm-icon" src="./static/windows-10.png" alt="Windows"/>
+        <div class="vm-info">
+          <div class="vm-name">Windows 10</div>
+          <div class="vm-desc">WIN10 // PROXMOX-KVM</div>
+        </div>
+      </div>
+      <div class="vm-input-wrap">
+        <span class="vm-input-label">INSTANCE COUNT</span>
+        <input class="vm-input" type="number" id="win10" value="0" min="0" max="20"/>
+        <div class="step-btns">
+          <button class="step-btn" onclick="step('win10',1)">▲</button>
+          <button class="step-btn" onclick="step('win10',-1)">▼</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="vm-card">
+      <div class="corner-tl"></div><div class="corner-br"></div>
+      <div class="panel-label">TARGET NODE — LINUX</div>
+      <div class="vm-card-inner">
+        <img class="vm-icon" src="./static/linux.png" alt="Linux"/>
+        <div class="vm-info">
+          <div class="vm-name">Linux</div>
+          <div class="vm-desc">UBUNTU // PROXMOX-KVM</div>
+        </div>
+      </div>
+      <div class="vm-input-wrap">
+        <span class="vm-input-label">INSTANCE COUNT</span>
+        <input class="vm-input" type="number" id="linux" value="0" min="0" max="20"/>
+        <div class="step-btns">
+          <button class="step-btn" onclick="step('linux',1)">▲</button>
+          <button class="step-btn" onclick="step('linux',-1)">▼</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="action-row">
+    <button class="btn btn-deploy"  id="deployBtn"  onclick="deploy()">⬡ DEPLOY INFRA</button>
+    <button class="btn btn-destroy" id="destroyBtn" onclick="openDestroyModal()">⬡ DESTROY ALL</button>
+  </div>
+
+  <div class="panel progress-panel">
+    <div class="corner-tl"></div><div class="corner-br"></div>
+    <div class="panel-label">DEPLOYMENT METRICS</div>
+    <div class="progress-inner">
+      <div class="radial-wrap">
+        <div class="radial">
+          <svg viewBox="0 0 140 140">
+            <circle class="radial-bg"   cx="70" cy="70" r="60"/>
+            <circle class="radial-fill" cx="70" cy="70" r="60" id="radialFill"/>
+          </svg>
+          <div class="radial-text">
+            <div class="radial-pct" id="radialPct">0%</div>
+            <div class="radial-sub">PROGRESS</div>
+          </div>
+        </div>
+        <div class="vm-counts">
+          <div class="count-box"><div class="count-num" id="win10_count">0</div><div class="count-lbl">WIN</div></div>
+          <div class="count-box"><div class="count-num" id="linux_count">0</div><div class="count-lbl">LNX</div></div>
+          <div class="count-box"><div class="count-num" id="total_count">0</div><div class="count-lbl">TOTAL</div></div>
+        </div>
+      </div>
+      <div class="prog-right">
+        <div class="bar-label">
+          <span>TERRAFORM PIPELINE</span>
+          <span id="barPct">0%</span>
+        </div>
+        <div class="bar-wrap"><div class="bar-fill" id="barFill"></div></div>
+        <div class="phase-indicators">
+          <div class="phase" id="ph-init">INIT</div>
+          <div class="phase" id="ph-plan">PLAN</div>
+          <div class="phase" id="ph-apply">APPLY</div>
+          <div class="phase" id="ph-done">DONE</div>
+        </div>
+        <div class="bar-label" style="margin-top:6px">
+          <span id="statusMsg" style="color:var(--text);font-size:11px;letter-spacing:1px">IDLE — AWAITING COMMAND</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel tf-panel">
+    <div class="corner-tl"></div><div class="corner-br"></div>
+    <div class="tf-header-row">
+      <img id="tfLogo" src="./static/terraform.png" alt="Terraform"/>
+      <div class="panel-label" style="margin-bottom:0">TERRAFORM OUTPUT</div>
+    </div>
+    <div class="terminal" id="terminal"></div>
+  </div>
+
+  <div class="panel status-panel">
+    <div class="corner-tl"></div><div class="corner-br"></div>
+    <div class="panel-label">ACTIVE NODES</div>
+    <table class="vm-table">
+      <thead>
+        <tr><th>HOSTNAME</th><th>IP ADDRESS</th><th>STATE</th></tr>
+      </thead>
+      <tbody id="vmTableBody">
+        <tr><td colspan="3" class="no-data">NO ACTIVE NODES — DEPLOY TO BEGIN</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<script>
+// ─── CLOCK ───
+function tickClock(){
+  document.getElementById("clock").textContent = new Date().toTimeString().slice(0,8);
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+// ─── STEPPER ───
+function step(id, delta){
+  const el = document.getElementById(id);
+  el.value = Math.max(0, (parseInt(el.value) || 0) + delta);
+}
+
+// ─── LOG ───
+function log(msg){
+  const t = document.getElementById("terminal");
+  const d = document.createElement("div");
+  d.className = "log-line";
+  if(/error|failed/i.test(msg))          d.classList.add("err");
+  else if(/complete|success/i.test(msg)) d.classList.add("ok");
+  d.textContent = "> " + msg;
+  t.appendChild(d);
+  t.scrollTop = t.scrollHeight;
+}
+
+// ─── PROGRESS ───
+// FIX: match the exact circumference used in CSS (2 * PI * 60 = 376.991)
+const CIRCUMFERENCE = 2 * Math.PI * 60;
+
+function updateProgress(val){
+  val = Math.min(100, Math.max(0, val));
+
+  const offset = CIRCUMFERENCE - (val / 100) * CIRCUMFERENCE;
+  document.getElementById("radialFill").style.strokeDashoffset = offset;
+  document.getElementById("radialPct").textContent = val + "%";
+
+  document.getElementById("barFill").style.width = val + "%";
+  document.getElementById("barPct").textContent = val + "%";
+
+  const phases = [
+    { id:"ph-init",  min:1,  max:29  },
+    { id:"ph-plan",  min:30, max:59  },
+    { id:"ph-apply", min:60, max:99  },
+    { id:"ph-done",  min:100,max:100 },
+  ];
+  phases.forEach(p => {
+    const el = document.getElementById(p.id);
+    el.classList.remove("active","done");
+    if(val >= p.max)        el.classList.add("done");
+    else if(val >= p.min)   el.classList.add("active");
+  });
+}
+
+// ─── BUTTON LOCK ───
+// FIX: disable both buttons while an operation is running to prevent concurrent operations
+function setButtonsLocked(locked){
+  document.getElementById("deployBtn").disabled  = locked;
+  document.getElementById("destroyBtn").disabled = locked;
+}
+
+// ─── STATUS LOAD ───
+let statusInterval = null;
+
+async function loadStatus(){
+  try {
+    const res  = await fetch("/status");
+    const data = await res.json();
+
+    // FIX: guard against non-array (e.g. server error returning an object)
+    if(!Array.isArray(data)) return;
+
+    const tbody = document.getElementById("vmTableBody");
+
+    if(data.length === 0){
+      tbody.innerHTML = `<tr><td colspan="3" class="no-data">NO ACTIVE NODES</td></tr>`;
+      document.getElementById("total_count").textContent = 0;
+      return;
+    }
+
+    tbody.innerHTML = data.map(vm => {
+      const badgeCls = vm.status === "running" ? "badge-running"
+                     : vm.status === "stopped"  ? "badge-stopped"
+                     : "badge-other";
+      // FIX: escape vm.name and vm.ip to prevent XSS from VM names
+      return `<tr>
+        <td>${escHtml(vm.name)}</td>
+        <td>${escHtml(vm.ip)}</td>
+        <td><span class="status-badge ${badgeCls}">${escHtml(vm.status.toUpperCase())}</span></td>
+      </tr>`;
+    }).join("");
+
+    document.getElementById("total_count").textContent = data.length;
+  } catch(e){
+    console.warn("Status fetch failed:", e);
+  }
+}
+
+// Simple HTML escape to prevent XSS from VM name/IP values
+function escHtml(str){
+  return String(str)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
+
+// ─── WEBSOCKET ───
+let activeWs = null;
+
+function openWebSocket(action){
+  // FIX: close any existing socket before opening a new one
+  if(activeWs && activeWs.readyState === WebSocket.OPEN){
+    activeWs.close();
+  }
+
+  // FIX: use wss:// when page is served over HTTPS, ws:// otherwise
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${proto}://${location.host}/ws`);
+  activeWs = ws;
+
+  const logo = document.getElementById("tfLogo");
+  logo.classList.remove("tf-complete");
+  logo.classList.add("tf-running");
+  document.getElementById("terminal").innerHTML = "";
+  setButtonsLocked(true);
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ action }));
+    document.getElementById("statusMsg").textContent = action.toUpperCase() + " IN PROGRESS...";
+  };
+
+  ws.onmessage = (e) => {
+    let d;
+    // FIX: guard against malformed JSON from server
+    try { d = JSON.parse(e.data); }
+    catch { log("[ERROR] Received malformed message from server"); return; }
+
+    if(d.log) log(d.log);
+    if(typeof d.progress === "number") updateProgress(d.progress);
+
+    if(d.complete){
+      logo.classList.remove("tf-running");
+      logo.classList.add("tf-complete");
+      document.getElementById("statusMsg").textContent = d.log || "COMPLETE";
+      setButtonsLocked(false);
+      loadStatus();
+      // FIX: also cancel the in-flight statusInterval restart so it doesn't
+      // accumulate — restart a fresh one now that operation is done
+      if(statusInterval) clearInterval(statusInterval);
+      statusInterval = setInterval(loadStatus, 5000);
+    }
+  };
+
+  ws.onerror = () => {
+    log("WebSocket error — check server logs", "err");
+    logo.classList.remove("tf-running");
+    setButtonsLocked(false);
+  };
+
+  ws.onclose = () => {
+    activeWs = null;
+    // FIX: if socket closed without sending complete:true (server crash, etc.)
+    // unlock the buttons so the user isn't permanently locked out
+    setButtonsLocked(false);
+  };
+}
+
+// ─── DEPLOY ───
+async function deploy(){
+  const w = parseInt(document.getElementById("win10").value) || 0;
+  const l = parseInt(document.getElementById("linux").value) || 0;
+
+  // FIX: guard — deploying 0 of both is probably a mistake
+  if(w === 0 && l === 0){
+    document.getElementById("statusMsg").textContent = "SET AT LEAST ONE VM COUNT BEFORE DEPLOYING";
+    return;
+  }
+
+  document.getElementById("win10_count").textContent = w;
+  document.getElementById("linux_count").textContent = l;
+  document.getElementById("total_count").textContent = w + l;
+
+  // POST first to persist config server-side before opening WS
+  await fetch("/deploy", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ win10: w, linux: l }),
+  });
+
+  // Start polling if not already running
+  if(!statusInterval){
+    statusInterval = setInterval(loadStatus, 5000);
+  }
+
+  openWebSocket("deploy");
+}
+
+// ─── DESTROY ───
+function openDestroyModal(){ document.getElementById("confirmModal").classList.add("show"); }
+function closeModal()       { document.getElementById("confirmModal").classList.remove("show"); }
+
+async function confirmDestroy(){
+  closeModal();
+  updateProgress(0);
+  document.getElementById("win10_count").textContent = 0;
+  document.getElementById("linux_count").textContent = 0;
+  document.getElementById("total_count").textContent = 0;
+  document.getElementById("statusMsg").textContent = "DESTROYING INFRASTRUCTURE...";
+  openWebSocket("destroy");
+}
+
+// Initial load on page open
+loadStatus();
+</script>
+</body>
+</html>
