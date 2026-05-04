@@ -12,7 +12,7 @@ app = FastAPI()
 app.mount("/static",StaticFiles(directory="static"),name="static")
 PROXMOX_HOST="50.50.50.81"
 USER="root@pam"
-PASSWORD="Admin@12345"
+PASSWORD=""
 NODE="pve"
 proxmox=ProxmoxAPI(PROXMOX_HOST, user=USER, password=PASSWORD, verify_ssl=False)
 class Deploy(BaseModel):
