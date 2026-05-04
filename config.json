@@ -1,0 +1,5 @@
+{
+  "status_endpoint": "/status",
+  "deploy_endpoint": "/deploy",
+  "refresh_interval": 5000
+}

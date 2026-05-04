@@ -1,0 +1,10 @@
+body{background:#020617;color:#00ffc3;font-family:monospace}
+.header{text-align:center;padding:20px;border-bottom:1px solid #00ffc3}
+.container{width:90%;margin:auto}
+.panel{border:1px solid #00ffc3;padding:20px;margin-top:20px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.card{text-align:center;border:1px solid #00ffc3;padding:15px}
+input,button{width:100%;padding:10px;margin-top:10px;background:black;color:#00ffc3;border:1px solid #00ffc3}
+table{width:100%;border-collapse:collapse}
+td,th{border:1px solid #00ffc3;padding:10px}
+.online{color:#00ff00}

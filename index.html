@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Cyber Infra Control Center</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #fdf6ec, #eef7ff);
+    color: #0a2540;
+}
+
+/* HEADER */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 40px;
+    border-bottom: 2px solid #d0e7ff;
+}
+
+.header h1 {
+    flex: 1;
+    text-align: center;
+}
+
+/* MAIN */
+.container {
+    padding: 30px;
+}
+
+/* GRID */
+.top-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+/* BLOCK */
+.block {
+    background: #cfe4ff;  /* slightly darker blue */
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: 0.35s;
+}
+.block:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 
+        0 12px 30px rgba(0,0,0,0.12),
+        0 0 12px rgba(77,166,255,0.3);
+}
+
+.block::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.7), transparent);
+    transform: skewX(-20deg);
+    transition: 0.7s;
+}
+
+.block:hover::after {
+    left: 120%;
+}
+
+.big-logo {
+    width: 120px;
+    transition: 0.3s;
+}
+
+.block:hover .big-logo {
+    transform: scale(1.1) rotate(2deg);
+}
+
+/* INPUT */
+input {
+    width: 80%;
+    padding: 10px;
+    margin-top: 15px;
+    border: 1px solid #aacfff;
+    border-radius: 6px;
+    text-align: center;
+}
+
+/* BUTTONS */
+.button-row {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 20px;
+}
+
+button {
+    padding: 10px 30px;
+    border-radius: 6px;
+    border: none;
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.deploy-btn { background: #28a745; }
+.deploy-btn:hover { background: #1e7e34; transform: translateY(-3px); }
+
+.destroy-btn { background: #dc3545; }
+.destroy-btn:hover { background: #a71d2a; transform: translateY(-3px); }
+
+button:active { transform: scale(0.95); }
+
+/* PROGRESS */
+.progress-panel {
+    margin-top: 30px;
+    background: #cfe4ff;
+    padding: 20px;
+    border-radius: 12px;
+}
+
+.progress-grid {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+}
+
+/* CIRCLE */
+.circle {
+    width: 120px;
+    height: 120px;
+    border: 8px solid #aacfff;
+    border-radius: 50%;
+    margin: auto;
+    position: relative;
+}
+
+.circle-fill {
+    width: 120px;
+    height: 120px;
+    border: 8px solid #4da6ff;
+    border-radius: 50%;
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    clip: rect(0px, 60px, 120px, 0px);
+    transform: rotate(0deg);
+}
+
+.circle-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 22px;
+    font-weight: bold;
+}
+
+/* MINI CARDS */
+.stats-block {
+    display: flex;
+    justify-content: space-around;
+}
+
+.mini-card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+    width: 130px;
+    transition: 0.3s;
+}
+
+.success {
+    background: #d4edda !important;
+    border: 1px solid #28a745;
+    color: #155724;
+}
+
+/* BAR */
+.progress-bar-container {
+    margin-top: 20px;
+    background: white;
+}
+
+.progress-bar {
+    height: 20px;
+    width: 0%;
+    background: #4da6ff;
+    transition: width 0.5s;
+}
+
+/* BLOCK */
+.info-block {
+    background: #cfe4ff;
+    padding: 25px;
+    border-radius: 12px;
+    margin-top: 30px;
+    border: 1px solid #b6d7ff;
+}
+/* TABLE */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    border: 1px solid #aacfff;
+    padding: 10px;
+    text-align: center;
+}
+
+/* TERRAFORM CENTER */
+.terraform-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.tf-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.tf-header img {
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* TERMINAL */
+.large-terminal {
+    width: 80%;
+    height: 220px;
+    background: white;
+    padding: 10px;
+    overflow-y: auto;
+    font-family: monospace;
+    border-radius: 8px;
+}
+
+/* LOGO ANIMATION */
+@keyframes rotateLogo {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.tf-running {
+    animation: rotateLogo 1s linear infinite;
+}
+
+.tf-complete {
+    animation: none;
+    filter: drop-shadow(0 0 10px #28a745);
+}
+img{
+  max-width:100%;
+  height:auto;
+}
+.logo{
+ width:80px;
+ height:80px;
+ object-fit:contain;
+}
+.card img{
+height:120px;
+object-fit:contain;
+}
+.mini-card img{
+height:60px;
+object-fit:contain;
+}
+.card, .mini-card{
+display: flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+}
+.terraform-card{
+   margin:40px auto;
+   width:250px;
+}
+.terraform-card img{
+width:100px;
+height:100px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+<img class="logo" src="static/bg.png"/>
+<h1>CYBER INFRA CONTROL CENTER</h1>
+<img class="logo" src="static/bg.png"/>
+</div>
+
+<div class="container">
+
+<div class="top-grid">
+
+<div class="block">
+<img class="logo" src="./static/windows-10.png"/>
+<h3>Windows</h3>
+<input id="win10" type="number">
+</div>
+
+<div class="block">
+<img class="logo" src="./static/linux.png"/>
+<h3>Linux</h3>
+<input id="linux" type="number">
+</div>
+
+</div>
+
+<div class="button-row">
+<button class="deploy-btn" onclick="deploy()">DEPLOY</button>
+<button class="destroy-btn" onclick="destroyInfra()">DESTROY</button>
+</div>
+
+<div class="progress-panel">
+
+<div class="progress-grid">
+
+<div>
+<div class="circle">
+<div class="circle-fill" id="circleFill"></div>
+<div class="circle-text" id="circleText">0</div>
+</div>
+<p style="text-align:center;">Total VMs</p>
+</div>
+
+<div class="stats-block">
+
+<div class="mini-card">
+<img src="./static/windows-10.png"/>
+<p>Windows</p>
+<h2 id="win10_count">0</h2>
+</div>
+
+<div class="mini-card">
+<img src="./static/linux.png"/>
+<p>Linux</p>
+<h2 id="linux_count">0</h2>
+</div>
+
+</div>
+
+</div>
+
+<div class="progress-bar-container">
+<div class="progress-bar" id="progress"></div>
+</div>
+
+</div>
+
+<div class="info-block">
+<h3 style="text-align:center;">STATUS</h3>
+<table id="table"><thead>
+<tr><th>Name</th><th>IP</th><th>Status</th></tr>
+</thead>
+<tbody id="vmTableBody"></tbody>
+</table>
+</div>
+
+<div class="info-block">
+
+<div class="terraform-center">
+
+<div class="tf-header">   
+ <img id="tfLogo" class="logo" src="./static/terraform.png"/>
+    <h3>Terraform Output</h3>
+</div>
+
+<div class="large-terminal" id="terminal"></div>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+async function load(){
+      let res=await fetch("http:/0.0.0.0:8000/status");
+      let data=await.res.json();
+      let table=document.getElementById("table");
+      table.innerHTML=
+          <tr>
+             <th>Name</th>
+             <th>IP</th>
+             <th>Status</th>
+          <tr>
+      ;
+      data.forEach(vm => {
+         table.innerHTML+=
+            <tr>
+                <td>${vm.name}</td>
+                <td>${vm.ip}</td>
+                <td class="${vm.status}">${vm.status</td>
+            </tr>
+         ;
+      });
+}
+
+function log(msg) {
+    let t = document.getElementById("terminal");
+    t.innerHTML += msg + "<br>";
+    t.scrollTop = t.scrollHeight;
+}
+
+function updateProgress(val) {
+    document.getElementById("progress").style.width = val + "%";
+    document.getElementById("circleFill").style.transform = `rotate(${val*3.6}deg)`;
+
+    if(val >= 100){
+        document.querySelectorAll(".mini-card").forEach(c=>c.classList.add("success"));
+
+        let logo = document.getElementById("tfLogo");
+        logo.classList.remove("tf-running");
+        logo.classList.add("tf-complete");
+    }
+}
+
+async function deploy(){
+
+    let w = document.getElementById("win10").value || 0;
+    let l = document.getElementById("linux").value || 0;
+
+    // keep your existing UI updates
+    document.getElementById("circleText").innerText = parseInt(w) + parseInt(l);
+    document.getElementById("win10_count").innerText = w;
+    document.getElementById("linux_count").innerText = l;
+
+    let logo = document.getElementById("tfLogo");
+    logo.classList.remove("tf-complete");
+    logo.classList.add("tf-running");
+
+    // 🔥 ONLY FIX: wait for backend before websocket
+    await fetch("http:/0.0.0.0:8000/deploy", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            win10: parseInt(w),
+            linux: parseInt(l)
+        })
+    });
+
+    load();
+    setInterval(load,5000);
+}
+async function destroyInfra(){
+
+    if(!confirm("Destroy ALL VMs?")) return;
+
+    await fetch("http:0.0.0.0:8000/destroy", { method:"POST" });
+
+    updateProgress(0);
+    document.getElementById("circleText").innerText = 0;
+
+    document.querySelectorAll(".mini-card").forEach(c=>c.classList.remove("success"));
+
+    let logo = document.getElementById("tfLogo");
+    logo.classList.remove("tf-running","tf-complete");
+
+    document.getElementById("terminal").innerHTML = "";
+    const ws = new WebSocket('ws://${location.host}/ws');
+    ws.onopen = () => {
+       ws.send(JSON.stringify({ action: "destroy" }));
+   };
+   ws.onmessage = (e)=>{
+      let d = JSON.parse(e.data);
+      log(d.log);
+      updateProgress(d.progress);
+      if(d.progress === 100){
+         logo.classlist.remove("tf-running");
+         logo.classlist.add("tf-complete");
+    }
+  };
+}
+
+</script>
+</body>
+</html>
