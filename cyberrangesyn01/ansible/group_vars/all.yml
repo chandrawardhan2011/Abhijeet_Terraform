@@ -1,0 +1,51 @@
+# group_vars/all.yml
+# Applies to every host in the inventory
+
+ansible_user: ansible
+ansible_password: "abc@123"
+ansible_become: true
+ansible_become_method: sudo
+ansible_become_password: "abc@123"
+ansible_host_key_checking: false
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+# ── Wazuh version pinned — change here to upgrade everywhere ──
+wazuh_version: "4.14.5"
+wazuh_manager_ip: "10.0.20.10"   # wazuh-server-1 — agents register here
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OFFLINE / AIR-GAPPED MODE
+# ─────────────────────────────────────────────────────────────────────────────
+# When offline_mode is true, every role pulls packages from the local mirror
+# hosted on the Terraform/Ansible control node instead of the internet.
+#
+# offline_repo_host  -> IP of the Terraform server running the apt mirror + file server
+# offline_apt_port   -> port the apt mirror is served on (see setup-offline-mirror.sh)
+# offline_files_port -> port the plain file server is served on (MSIs, scripts, certs)
+offline_mode: true
+offline_repo_host: "10.0.40.23"      # <- Terraform server IP - CHANGE IF YOURS DIFFERS
+offline_apt_port: 8080
+offline_files_port: 8081
+
+# Convenience URLs built from the above
+offline_apt_url:   "http://{{ offline_repo_host }}:{{ offline_apt_port }}"
+offline_files_url: "http://{{ offline_repo_host }}:{{ offline_files_port }}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BLUE AGENT — shared config for all VMs
+# ─────────────────────────────────────────────────────────────────────────────
+blue_agent_leaderboard_api: "http://10.177.217.193:8000/api/agent/report_batch"
+blue_agent_interval: 30
+blue_agent_require_admin: false
+blue_agent_clean_slate: false
+blue_agent_script_scan_paths: []
+blue_agent_web_targets: []
+blue_agent_ftp_targets: []
+blue_agent_smtp_targets: []
+blue_agent_domain: ""
+blue_agent_ports_to_monitor: [23]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BLUE TEAM APPS — offline installers base URL (served by offline-files-mirror)
+# ─────────────────────────────────────────────────────────────────────────────
+blue_apps_offline_url: "http://{{ offline_repo_host }}:{{ offline_files_port }}/blue-apps"

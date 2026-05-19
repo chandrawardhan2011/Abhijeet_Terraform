@@ -1,0 +1,12 @@
+# group_vars/linux_clients.yml
+# Linux clients run Jammy (22.04) — override apt mirror port to use
+# the jammy-specific mirror instead of the default noble mirror.
+
+offline_apt_port: 8082
+
+# Convenience URL override (built from offline_repo_host in all.yml)
+offline_apt_url: "http://{{ offline_repo_host }}:{{ offline_apt_port }}"
+
+# Blue Agent — FTP targets (uncomment if linux clients should test FTP server)
+# blue_agent_ftp_targets:
+#   - host: "10.0.20.40"

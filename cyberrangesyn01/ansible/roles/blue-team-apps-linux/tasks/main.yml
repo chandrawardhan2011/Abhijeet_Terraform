@@ -1,0 +1,26 @@
+---
+# roles/blue-team-apps-linux/tasks/main.yml
+# Installs Blue Team default tools on Linux clients (excluding Kali — Kali has these already).
+#
+# Tools: Wireshark, Burpsuite, arp-scan, nmap
+
+# ── WIRESHARK ─────────────────────────────────────────────────────────────────
+
+- name: Add ansible user to wireshark group (non-root capture)
+  user:
+    name: "{{ ansible_user }}"
+    groups: wireshark
+    append: yes
+
+# ── NMAP ──────────────────────────────────────────────────────────────────────
+
+- name: Install nmap
+  apt:
+    name: nmap
+    state: present
+
+# ── SUMMARY ───────────────────────────────────────────────────────────────────
+
+- name: Show Blue Team apps installed
+  debug:
+    msg: "Blue Team Linux apps installed on {{ inventory_hostname }}: Wireshark, nmap, arp-scan, Burp Suite Community"

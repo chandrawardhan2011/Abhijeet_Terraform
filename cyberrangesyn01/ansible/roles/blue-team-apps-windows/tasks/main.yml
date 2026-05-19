@@ -1,0 +1,145 @@
+---
+# roles/blue-team-apps-windows/tasks/main.yml
+# Installs Blue Team default tools on Windows clients.
+#
+# Tools: Wireshark, Zenmap (Nmap GUI), Burp Suite Community, Angry IP Scanner, HashCalc
+#
+# Offline mode: installers are served from the Terraform server's files mirror
+#   at {{ blue_apps_offline_url }}  (e.g. http://10.0.40.23:8081/blue-apps/)
+#   Run setup-offline-mirror.sh to pre-download them (see script for details).
+# Online mode: installers downloaded directly from vendor URLs.
+
+- name: Ensure C:\Temp exists
+  win_file:
+    path: 'C:\Temp'
+    state: directory
+
+# ── WIRESHARK ─────────────────────────────────────────────────────────────────
+
+- name: Check if Wireshark is already installed
+  win_stat:
+    path: 'C:\Program Files\Wireshark\Wireshark.exe'
+  register: wireshark_check
+
+- name: Download Wireshark installer (offline)
+  win_get_url:
+    url: "{{ blue_apps_offline_url }}/Wireshark-4.6.5-x64.exe"
+    dest: 'C:\Temp\wireshark_setup.exe'
+  when:
+    - not wireshark_check.stat.exists
+    - offline_mode | bool
+
+- name: Download Wireshark installer (online)
+  win_get_url:
+    url: "https://www.wireshark.org/download/win64/Wireshark-4.6.5-x64.exe"
+    dest: 'C:\Temp\wireshark_setup.exe'
+  when:
+    - not wireshark_check.stat.exists
+    - not (offline_mode | bool)
+
+- name: Install Wireshark silently
+  win_command: >
+    C:\Temp\wireshark_setup.exe /S /desktopicon=yes
+    /npcap_winpcap_mode=yes /npcap_loopback=yes
+  when: not wireshark_check.stat.exists
+  ignore_errors: yes
+
+# ── NMAP / ZENMAP ─────────────────────────────────────────────────────────────
+
+- name: Check if Nmap (Zenmap) is already installed
+  win_stat:
+    path: 'C:\Program Files (x86)\Nmap\zenmap.exe'
+  register: zenmap_check
+
+- name: Download Nmap/Zenmap installer (offline) PLEASE INSTALL LATER
+  win_get_url:
+    url: "{{ blue_apps_offline_url }}/nmap-7.94-setup.exe"
+    dest: 'C:\Temp\nmap_setup.exe'
+  when:
+    - not zenmap_check.stat.exists
+    - offline_mode | bool
+
+- name: Download Nmap/Zenmap installer (online)
+  win_get_url:
+    url: "https://nmap.org/dist/nmap-7.94-setup.exe"
+    dest: 'C:\Temp\nmap_setup.exe'
+  when:
+    - not zenmap_check.stat.exists
+    - not (offline_mode | bool)
+
+
+# ── BURP SUITE COMMUNITY ──────────────────────────────────────────────────────
+
+- name: Check if Burp Suite is already installed
+  win_stat:
+    path: 'C:\Program Files\BurpSuiteCommunity\BurpSuiteCommunity.exe'
+  register: burp_check
+
+- name: Download Burp Suite Community installer (offline)
+  win_get_url:
+    url: "{{ blue_apps_offline_url }}/burpsuite_community_windows-x64.exe"
+    dest: 'C:\Temp\burpsuite_setup.exe'
+  when:
+    - not burp_check.stat.exists
+    - offline_mode | bool
+
+- name: Download Burp Suite Community installer (online)
+  win_get_url:
+    url: "https://portswigger-cdn.net/burp/releases/download?product=community&type=WindowsX64"
+    dest: 'C:\Temp\burpsuite_setup.exe'
+  when:
+    - not burp_check.stat.exists
+    - not (offline_mode | bool)
+
+- name: Install Burp Suite Community silently
+  win_command: C:\Temp\burpsuite_setup.exe -q
+  when: not burp_check.stat.exists
+  ignore_errors: yes
+
+# ── ANGRY IP SCANNER ──────────────────────────────────────────────────────────
+
+- name: Check if Angry IP Scanner is already installed
+  win_stat:
+    path: 'C:\Program Files\Angry IP Scanner\ipscan.exe'
+  register: ipscan_check
+
+- name: Download Angry IP Scanner installer (offline)
+  win_get_url:
+    url: "{{ blue_apps_offline_url }}/ipscan-3.9.1-setup.exe"
+    dest: 'C:\Temp\ipscan_setup.exe'
+  when:
+    - not ipscan_check.stat.exists
+    - offline_mode | bool
+
+- name: Download Angry IP Scanner installer (online)
+  win_get_url:
+    url: "https://github.com/angryip/ipscan/releases/download/3.9.1/ipscan-3.9.1-setup.exe"
+    dest: 'C:\Temp\ipscan_setup.exe'
+  when:
+    - not ipscan_check.stat.exists
+    - not (offline_mode | bool)
+
+- name: Install Angry IP Scanner silently
+  win_command: C:\Temp\ipscan_setup.exe /S
+  when: not ipscan_check.stat.exists
+  ignore_errors: yes
+
+# ── FIREWALL — allow Wireshark/Nmap traffic ────────────────────────────────────
+
+- name: Allow Nmap outbound in Windows Firewall
+  win_firewall_rule:
+    name: "Nmap Outbound"
+    program: 'C:\Program Files (x86)\Nmap\nmap.exe'
+    action: allow
+    direction: out
+    state: present
+    enabled: yes
+  ignore_errors: yes
+
+# ── SUMMARY ───────────────────────────────────────────────────────────────────
+
+- name: Show Blue Team Windows apps status
+  debug:
+    msg: >
+      Blue Team Windows apps deployed on {{ inventory_hostname }}:
+      Wireshark, Zenmap/Nmap, Burp Suite Community, Angry IP Scanner
