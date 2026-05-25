@@ -1,0 +1,90 @@
+---
+# roles/db-server/tasks/main.yml
+# Installs and configures MariaDB on Ubuntu
+
+- name: Stop and disable unattended-upgrades
+  systemd:
+    name: unattended-upgrades
+    state: stopped
+    enabled: no
+  ignore_errors: yes
+
+- name: Remove unattended-upgrades permanently
+  apt:
+    name: unattended-upgrades
+    state: absent
+    purge: yes
+  ignore_errors: yes
+
+- name: Install PyMySQL
+  apt:
+    name: python3-pymysql
+    state: present
+    update_cache: yes
+
+- name: Install prerequisites
+  apt:
+    name:
+      - gnupg
+      - curl
+    state: present
+    update_cache: yes
+
+- name: Install MariaDB Server
+  apt:
+    name:
+      - mariadb-server
+      - mariadb-client
+    state: present
+    update_cache: yes
+
+- name: Ensure MariaDB is enabled and started
+  systemd:
+    name: mariadb
+    enabled: yes
+    state: started
+
+- name: Configure MariaDB to bind on all interfaces
+  lineinfile:
+    path: /etc/mysql/mariadb.conf.d/50-server.cnf
+    regexp: '^bind-address'
+    line: 'bind-address = 0.0.0.0'
+    backup: yes
+  notify: restart mariadb
+
+- name: Allow MariaDB port 3306 in UFW
+  ufw:
+    rule: allow
+    port: '3306'
+    proto: tcp
+    src: '10.0.20.0/24'
+
+- name: Create database for CyberRange
+  mysql_db:
+    name: cyberrange
+    state: present
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+
+- name: Create admin user with remote access
+  mysql_user:
+    name: admin
+    password: "abc@123"
+    priv: '*.*:ALL'
+    host: '%'
+    state: present
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+
+- name: Wait for MariaDB to be ready
+  wait_for:
+    port: 3306
+    delay: 5
+    timeout: 60
+
+- name: Verify MariaDB is running
+  command: systemctl is-active mariadb
+  register: mariadb_status
+  changed_when: false
+
+- name: Show MariaDB Status
+  debug:
+    msg: "MariaDB on {{ inventory_hostname }} is {{ mariadb_status.stdout }}"

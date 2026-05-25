@@ -1,0 +1,11 @@
+# group_vars/windows_clients.yml
+# WinRM connection settings for Windows targets
+
+ansible_user: Administrator
+ansible_password: "Admin@123"
+ansible_connection: winrm
+ansible_winrm_transport: basic
+ansible_winrm_server_cert_validation: ignore
+ansible_winrm_port: 5985
+ansible_shell_type: powershell
+ansible_become: false

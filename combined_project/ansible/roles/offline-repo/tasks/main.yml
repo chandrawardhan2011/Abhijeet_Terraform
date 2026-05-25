@@ -1,0 +1,96 @@
+---
+# roles/offline-repo/tasks/main.yml
+# Points the target VM's apt at the local offline mirror on the Terraform server.
+# Run this FIRST on every host (included at the top of site.yml).
+# [trusted=yes] in the mirror source means NO GPG key is needed — fully air-gapped.
+
+- name: Stop unattended-upgrades service
+  systemd:
+    name: unattended-upgrades
+    state: stopped
+    enabled: no
+  ignore_errors: yes
+
+- name: Remove unattended-upgrades permanently
+  apt:
+    name: unattended-upgrades
+    state: absent
+    purge: yes
+  ignore_errors: yes
+
+- name: Configure offline apt mirror
+  when: offline_mode | bool
+  block:
+
+    - name: Disable all existing apt sources (offline mode)
+      shell: |
+        mkdir -p /etc/apt/sources.list.d/disabled
+        # Move any .list files that are NOT our offline mirror
+        for f in /etc/apt/sources.list.d/*.list; do
+          [ "$(basename $f)" = "offline-mirror.list" ] && continue
+          mv "$f" /etc/apt/sources.list.d/disabled/ 2>/dev/null || true
+        done
+        # Also disable ubuntu default sources
+        echo "" > /etc/apt/sources.list
+        # Remove ubuntu sources files specifically
+        rm -f /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null || true
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Remove wazuh online apt repo file (offline mode — not needed with trusted=yes)
+      file:
+        path: /etc/apt/sources.list.d/wazuh.list
+        state: absent
+
+    - name: Remove wazuh GPG key file (offline mode — not needed with trusted=yes)
+      file:
+        path: /usr/share/keyrings/wazuh.gpg
+        state: absent
+
+    - name: Remove disabled wazuh list if moved there
+      file:
+        path: /etc/apt/sources.list.d/disabled/wazuh.list
+        state: absent
+      ignore_errors: yes
+
+    - name: Configure apt to ignore missing translation files
+      copy:
+        dest: /etc/apt/apt.conf.d/99-cyberrange-offline
+        content: |
+          Acquire::Languages "none";
+          Acquire::GzipIndexes "false";
+          Acquire::CompressionTypes::Order:: "gz";
+          APT::Get::AllowUnauthenticated "true";
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Add local offline apt mirror (trusted=yes — GPG bypass, fully air-gapped)
+      copy:
+        dest: /etc/apt/sources.list.d/offline-mirror.list
+        content: |
+          # CyberRange offline mirror — served by the Terraform control node
+          # trusted=yes bypasses GPG verification — no internet key fetch needed
+          deb [trusted=yes] {{ offline_apt_url }} stable main
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Update apt cache from offline mirror
+      apt:
+        update_cache: yes
+        allow_unauthenticated: yes
+      register: offline_apt_update
+      retries: 3
+      delay: 5
+      until: offline_apt_update is succeeded
+
+    - name: Confirm offline mirror is reachable
+      debug:
+        msg: "Offline apt mirror active on {{ inventory_hostname }} → {{ offline_apt_url }}"
+
+- name: Skip offline setup (online mode)
+  when: not (offline_mode | bool)
+  debug:
+    msg: "offline_mode is false — using normal internet apt repos on {{ inventory_hostname }}"

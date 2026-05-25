@@ -1,0 +1,116 @@
+---
+# roles/blue-agent-windows/tasks/main.yml
+# Deploys blue_agent.py (Windows-specific agent) as a SYSTEM Scheduled Task.
+# Repeats every 1 minute, reports to leaderboard at blue_agent_leaderboard_api.
+
+- name: Ensure C:\blue-agent directory exists
+  win_file:
+    path: 'C:\blue-agent'
+    state: directory
+
+- name: Copy blue agent Python script (Windows agent)
+  win_copy:
+    src: blue_agent.py
+    dest: 'C:\blue-agent\blue_agent.py'
+
+- name: Copy pip requirements
+  win_copy:
+    src: requirements-agent.txt
+    dest: 'C:\blue-agent\requirements-agent.txt'
+
+- name: Deploy config.json (leaderboard URL + targets)
+  win_template:
+    src: config.json.j2
+    dest: 'C:\blue-agent\config.json'
+
+- name: Check if Python is already installed
+  win_command: python --version
+  register: python_check
+  ignore_errors: yes
+  changed_when: false
+
+- name: Download Python installer (offline mode)
+  win_get_url:
+    url: "{{ blue_apps_offline_url }}/python-3.11.9-amd64.exe"
+    dest: 'C:\Windows\Temp\python_installer.exe'
+  when:
+    - python_check.rc != 0
+    - offline_mode | bool
+
+- name: Download Python installer (online mode)
+  win_get_url:
+    url: "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe"
+    dest: 'C:\Windows\Temp\python_installer.exe'
+  when:
+    - python_check.rc != 0
+    - not (offline_mode | bool)
+
+- name: Install Python silently
+  win_command: >
+    C:\Windows\Temp\python_installer.exe /quiet InstallAllUsers=1
+    PrependPath=1 Include_test=0
+  when: python_check.rc != 0
+
+- name: Ensure C:\blue-agent\pip directiory exists
+  win_file:
+    path: 'C:\blue-agent\pip'
+    state: directory
+  when: offline_mode | bool
+
+- name: Download all pip wheels from offline mirror
+  win_get_url:
+    url: "http://{{ offline_repo_host }}:{{ offline_files_port }}/blue-apps/pip/{{ item }}"
+    dest: "C:\\blue-agent\\pip\\{{ item }}"
+  loop: "{{ pip_wheels }}"
+  when: offline_mode | bool
+  ignore_errors: yes
+
+- name: Install all pip wheels from local folder(offline)
+  win_command: >
+    python -m pip install --no-index --find-links=C:\blue-agent\pip requests
+  when: offline_mode | bool
+  ignore_errors: yes
+
+- name: Install pip requirements (online)
+  win_command: >
+    python -m pip install -r C:\blue-agent\requirements-agent.txt
+  register: pip_install_online
+  when: not (offline_mode | bool)
+  changed_when: "'Successfully installed' in pip_install_online.stdout"
+
+- name: Remove existing BlueAgent scheduled task (idempotent)
+  win_scheduled_task:
+    name: BlueAgent
+    state: absent
+  ignore_errors: yes
+
+- name: Create BlueAgent scheduled task (runs as SYSTEM, repeats every 1 min)
+  win_scheduled_task:
+    name: BlueAgent
+    description: "Blue Team CyberRange Agent (Windows) — reports patch status to leaderboard"
+    actions:
+      - path: python
+        arguments: 'C:\blue-agent\blue_agent.py'
+        working_directory: 'C:\blue-agent'
+    triggers:
+      - type: boot
+        delay: PT30S
+      - type: daily
+        start_boundary: '2000-01-01T00:00:00'
+        repetition:
+          interval: PT1M
+          duration: P1D
+          stop_at_duration_end: false
+    username: SYSTEM
+    run_level: highest
+    state: present
+    enabled: yes
+    allow_demand_start: yes
+
+- name: Start BlueAgent task immediately (first run)
+  win_command: schtasks /run /tn BlueAgent
+  ignore_errors: yes
+
+- name: Show Blue Agent deployment result
+  debug:
+    msg: "Blue Agent (Windows) deployed on {{ inventory_hostname }} — Scheduled Task 'BlueAgent' running blue_agent.py → {{ blue_agent_leaderboard_api }}"

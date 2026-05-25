@@ -1,0 +1,51 @@
+# group_vars/web_servers.yml
+# ─────────────────────────────────────────────────────────────────────────────
+# WEB SERVER CONFIGURATION
+# ─────────────────────────────────────────────────────────────────────────────
+# The web server can host TWO kinds of content side by side:
+#
+#  A) The ICP / Shikra Insurance vulnerable training app  (deploy_icp)
+#     - Self-contained, ships its own installer, MySQL DB, 6 subdomains on :80
+#     - Lives in roles/icp-website/files/icp-app/
+#
+#  B) Your own simple websites  (websites: list)
+#     - Each is one Apache vhost on its own custom port
+#     - Drop files in roles/web-server/files/sites/<name>/
+#
+# They coexist fine: ICP owns port 80 (via name-based subdomain vhosts),
+# your custom sites use ports 8001+.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── A) ICP / Shikra vulnerable app ───────────────────────────────────────────
+# Set to false to skip the ICP app entirely.
+deploy_icp: true
+
+# ── B) Your own simple websites ──────────────────────────────────────────────
+# To host a new website:
+#   1. Create a folder:  roles/web-server/files/sites/<name>/
+#   2. Put your .html / .php files inside (index.html or index.php as entry)
+#   3. Add an entry below with a UNIQUE port (avoid 80 — ICP uses it)
+#   4. Re-run:  ansible-playbook site.yml --limit web_servers
+#
+# 'php: true'  -> enables PHP for that site
+# 'php: false' -> static HTML only
+#
+# Leave this list empty ( websites: [] ) if you only want the ICP app.
+
+websites:
+  - name: company-portal
+    port: 8001
+    php: true
+
+  - name: blog
+    port: 8002
+    php: true
+
+  - name: shop
+    port: 8003
+    php: true
+
+  # Add as many as you want — keep the ports unique and != 80:
+  # - name: my-new-site
+  #   port: 8004
+  #   php: true

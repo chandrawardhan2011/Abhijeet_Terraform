@@ -1,0 +1,12 @@
+{
+  "leaderboard_api":        "{{ blue_agent_leaderboard_api }}",
+  "interval_seconds":       {{ blue_agent_interval }},
+  "require_admin":          {{ blue_agent_require_admin | lower }},
+  "clean_slate":            {{ blue_agent_clean_slate | lower }},
+  "local_script_scan_paths": {{ blue_agent_script_scan_paths | to_json }},
+  "web_targets":            {{ blue_agent_web_targets | to_json }},
+  "ftp_targets":            {{ blue_agent_ftp_targets | to_json }},
+  "smtp_targets":           {{ blue_agent_smtp_targets | to_json }},
+  "domain":                 "{{ blue_agent_domain }}",
+  "ports_to_monitor":       {{ blue_agent_ports_to_monitor | to_json }}
+}

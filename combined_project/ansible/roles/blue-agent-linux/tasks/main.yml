@@ -1,0 +1,87 @@
+---
+# roles/blue-agent-linux/tasks/main.yml
+# Deploys blue_agent_kali.py as a root systemd service on ALL Linux machines
+# (clients + all servers). Reports patch status every 30s to the leaderboard.
+# Fully offline — python3-pip and python3-requests installed via apt mirror.
+
+- name: Ensure /opt/blue-agent directory exists
+  file:
+    path: /opt/blue-agent
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Copy blue agent Python script
+  copy:
+    src: blue_agent_kali.py
+    dest: /opt/blue-agent/blue_agent_kali.py
+    owner: root
+    group: root
+    mode: "0750"
+  notify: Restart blue-agent
+
+- name: Copy pip requirements
+  copy:
+    src: requirements-agent.txt
+    dest: /opt/blue-agent/requirements-agent.txt
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Deploy config.json (leaderboard URL + targets)
+  template:
+    src: config.json.j2
+    dest: /opt/blue-agent/config.json
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart blue-agent
+
+- name: Install python3, python3-pip, python3-requests via apt (offline mirror)
+  apt:
+    name:
+      - python3
+      - python3-requests
+    state: present
+    update_cache: yes
+
+# --break-system-packages required on Ubuntu 23.04+ (PEP 668)
+# --ignore-installed avoids conflict if pip version already present via apt
+- name: Install requests via pip (force, break-system-packages)
+  command: >
+    python3 -m pip install requests
+    --break-system-packages
+    --ignore-installed
+    --quiet
+  changed_when: false
+  failed_when: false
+  ignore_errors: yes
+
+- name: Deploy systemd service unit
+  template:
+    src: blue-agent.service.j2
+    dest: /etc/systemd/system/blue-agent.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart blue-agent
+
+- name: Enable and start blue-agent service
+  systemd:
+    name: blue-agent
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Verify blue-agent is running
+  command: systemctl is-active blue-agent
+  register: blue_agent_status
+  changed_when: false
+  ignore_errors: yes
+
+- name: Show blue-agent status
+  debug:
+    msg: "Blue Agent on {{ inventory_hostname }} → {{ blue_agent_status.stdout }} | API: {{ blue_agent_leaderboard_api }}"

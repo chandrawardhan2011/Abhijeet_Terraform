@@ -1,0 +1,7 @@
+---
+# roles/wazuh-agent/handlers/main.yml
+
+- name: restart wazuh-agent
+  systemd:
+    name: wazuh-agent
+    state: restarted

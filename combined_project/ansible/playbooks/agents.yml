@@ -1,0 +1,15 @@
+---
+# playbooks/agents.yml — Deploy Wazuh agents only (run after servers.yml)
+
+- name: Deploy Wazuh Agent - Linux Clients
+  hosts: linux_clients
+  become: yes
+  roles:
+    - offline-repo
+    - wazuh-agent
+
+- name: Deploy Wazuh Agent - Windows Clients
+  hosts: windows_clients
+  become: no
+  roles:
+    - wazuh-agent-windows
