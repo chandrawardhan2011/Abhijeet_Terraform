@@ -1,6 +1,0 @@
-fastapi
-uvicorn[standard]
-proxmoxer
-requests
-pywinrm
-pathlib
