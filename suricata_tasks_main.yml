@@ -1,0 +1,162 @@
+---
+# ansible/roles/suricata/tasks/main.yml
+# Installs Suricata in IDS (passive) mode — FULLY OFFLINE
+#
+# Prerequisites (handled by setup-offline-mirror.sh):
+#   Linux  — suricata .deb packages served via offline apt mirror
+#   Windows — Suricata-8.0.5-1-64bit.msi in roles/suricata/files/
+#   Both   — rules/ folder (ET Open) in roles/suricata/files/rules/
+#
+# No internet access is required on any target during this playbook.
+
+# ── Linux ─────────────────────────────────────────────────────────────────────
+- name: Suricata Linux block
+  block:
+
+    - name: Install Suricata from offline apt mirror
+      apt:
+        name: suricata
+        state: present
+        update_cache: yes
+
+    - name: Deploy suricata.yaml from template
+      template:
+        src: suricata-linux.yaml.j2
+        dest: /etc/suricata/suricata.yaml
+        owner: root
+        group: suricata
+        mode: '0640'
+      notify: restart suricata linux
+
+    - name: Ensure rules directory exists
+      file:
+        path: /var/lib/suricata/rules
+        state: directory
+        owner: suricata
+        group: suricata
+        mode: '0750'
+
+    - name: Ensure log directory exists
+      file:
+        path: /var/log/suricata
+        state: directory
+        owner: suricata
+        group: suricata
+        mode: '0750'
+
+    - name: Copy ET Open rules folder from Ansible controller to target
+      copy:
+        src: files/rules/
+        dest: /var/lib/suricata/rules/
+        owner: suricata
+        group: suricata
+        mode: '0640'
+      notify: restart suricata linux
+
+    - name: Enable and start Suricata
+      systemd:
+        name: suricata
+        enabled: yes
+        state: started
+
+    # Skip on wazuh-server-1 — that host runs wazuh-manager not wazuh-agent
+    # so the service name is different and ossec.conf is managed separately
+    - name: Add Suricata eve.json to Wazuh agent config
+      blockinfile:
+        path: /var/ossec/etc/ossec.conf
+        marker: "<!-- {mark} ANSIBLE SURICATA -->"
+        insertbefore: '</ossec_config>'
+        block: |
+          <localfile>
+            <log_format>json</log_format>
+            <location>/var/log/suricata/eve.json</location>
+          </localfile>
+      notify: restart wazuh-agent linux
+      ignore_errors: yes
+      when: "'wazuh_servers' not in group_names"
+
+    - name: Drop install marker
+      copy:
+        dest: /etc/suricata/.ansible_installed
+        content: "Suricata installed by Ansible {{ ansible_date_time.iso8601 }}\n"
+        mode: '0644'
+
+  when: ansible_os_family == "Debian"
+  become: yes
+
+# ── Windows ───────────────────────────────────────────────────────────────────
+- name: Suricata Windows block
+  block:
+
+    - name: Ensure C:\Temp exists
+      win_file:
+        path: 'C:\Temp'
+        state: directory
+
+    - name: Copy Suricata MSI from Ansible controller to target
+      win_copy:
+        src: files/Suricata-8.0.5-1-64bit.msi
+        dest: 'C:\Temp\Suricata-8.0.5-1-64bit.msi'
+
+    - name: Install Suricata silently from copied MSI
+      win_package:
+        path: 'C:\Temp\Suricata-8.0.5-1-64bit.msi'
+        arguments: '/quiet /norestart INSTALLDIR="C:\Program Files\Suricata"'
+        state: present
+        creates_path: 'C:\Program Files\Suricata\suricata.exe'
+
+    - name: Ensure rules directory exists
+      win_file:
+        path: 'C:\Program Files\Suricata\rules'
+        state: directory
+
+    - name: Ensure log directory exists
+      win_file:
+        path: 'C:\Program Files\Suricata\log'
+        state: directory
+
+    - name: Deploy suricata.yaml from template
+      win_template:
+        src: suricata-windows.yaml.j2
+        dest: 'C:\Program Files\Suricata\suricata.yaml'
+
+    - name: Copy ET Open rules folder from Ansible controller to target
+      win_copy:
+        src: files/rules/
+        dest: 'C:\Program Files\Suricata\rules\'
+
+    # Use win_shell with Start-Process to ensure elevated execution
+    - name: Install Suricata as Windows service
+      win_shell: >
+        Start-Process
+        -FilePath "C:\Program Files\Suricata\suricata.exe"
+        -ArgumentList "--service-install -c `"C:\Program Files\Suricata\suricata.yaml`""
+        -Verb RunAs -Wait
+      register: svc_install
+      failed_when:
+        - svc_install.rc is defined
+        - svc_install.rc != 0
+        - "'already' not in (svc_install.stderr | lower | default(''))"
+      ignore_errors: yes
+
+    - name: Ensure Suricata service is running and auto-start
+      win_service:
+        name: Suricata
+        start_mode: auto
+        state: started
+
+    - name: Add Suricata eve.json to Wazuh agent config
+      win_lineinfile:
+        path: 'C:\Program Files (x86)\ossec-agent\ossec.conf'
+        insertbefore: '</ossec_config>'
+        line: "  <localfile>\n    <log_format>json</log_format>\n    <location>C:\\Program Files\\Suricata\\log\\eve.json</location>\n  </localfile>"
+        state: present
+      notify: restart wazuh-agent windows
+      ignore_errors: yes
+
+    - name: Drop install marker
+      win_copy:
+        dest: 'C:\Program Files\Suricata\.ansible_installed'
+        content: "Suricata installed by Ansible {{ ansible_date_time.iso8601 }}"
+
+  when: ansible_os_family == "Windows"
