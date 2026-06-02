@@ -1,6 +1,0 @@
-#cloud-config
-runcmd:
-  - systemctl stop unattended-upgrades
-  - systemctl disable unattended-upgrades
-  - apt-get remove -y unattended-upgrades
-  - apt-get autoremove -y
