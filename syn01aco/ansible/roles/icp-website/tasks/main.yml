@@ -1,0 +1,108 @@
+---
+# roles/icp-website/tasks/main.yml
+# Deploys the ICP / Shikra Insurance vulnerable web application.
+#
+# Controlled by the 'deploy_icp' flag in group_vars/web_servers.yml
+
+- name: Deploy ICP / Shikra Insurance vulnerable web app
+  when: deploy_icp | default(true) | bool
+  block:
+
+    # Install ALL packages via Ansible (uses offline mirror correctly)
+    # This pre-installs everything so install.sh apt-get calls are no-ops
+    - name: Install all ICP prerequisites via apt (offline mirror)
+      apt:
+        name:
+          - apache2
+          - mariadb-server
+          - mariadb-client
+          - php
+          - libapache2-mod-php
+          - php-mysql
+          - php-cli
+          - php-mbstring
+          - php-xml
+          - php-curl
+          - curl
+          - jq
+          - openssl
+          - ca-certificates
+        state: present
+        update_cache: yes
+
+    - name: Ensure MariaDB is started before ICP installer runs
+      systemd:
+        name: mariadb
+        state: started
+        enabled: yes
+
+    - name: Create staging directory for ICP app
+      file:
+        path: /opt/icp-staging
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copy ICP application tree to the web server
+      copy:
+        src: icp-app/
+        dest: /opt/icp-staging/
+        owner: root
+        group: root
+        mode: preserve
+
+    - name: Make ICP scripts executable
+      file:
+        path: "/opt/icp-staging/scripts/{{ item }}"
+        mode: '0755'
+      loop:
+        - install.sh
+        - smoke-test.sh
+        - uninstall.sh
+
+    - name: Run the ICP installer (idempotent — reuses /etc/icp/icp.env if present)
+      command: bash /opt/icp-staging/scripts/install.sh
+      args:
+        chdir: /opt/icp-staging
+        creates: /var/www/icp/apps/landing/public/index.php
+      register: icp_install
+      changed_when: "'Install Complete' in icp_install.stdout"
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+
+    - name: Show ICP installer output
+      debug:
+        var: icp_install.stdout_lines
+      when: icp_install.stdout_lines is defined
+
+    - name: Allow HTTP (port 80) through UFW for ICP
+      ufw:
+        rule: allow
+        port: '80'
+        proto: tcp
+      ignore_errors: yes
+
+    - name: Verify ICP landing site responds
+      uri:
+        url: "http://localhost/"
+        status_code: 200
+        headers:
+          Host: icp.lab
+      register: icp_check
+      retries: 3
+      delay: 5
+      ignore_errors: yes
+
+    - name: Show ICP deployment summary
+      debug:
+        msg:
+          - "ICP / Shikra Insurance deployed on {{ inventory_hostname }}"
+          - "Subdomains: icp.lab  www.icp.lab  policies.icp.lab  claims.icp.lab"
+          - "Landing responds: {{ 'YES' if (icp_check.status is defined and icp_check.status == 200) else 'CHECK MANUALLY' }}"
+          - "27 deliberate vulnerabilities — see /opt/icp-staging/README.md"
+
+- name: Skip ICP deployment
+  when: not (deploy_icp | default(true) | bool)
+  debug:
+    msg: "deploy_icp is false — skipping ICP on {{ inventory_hostname }}"

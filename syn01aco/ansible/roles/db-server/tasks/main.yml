@@ -1,0 +1,118 @@
+---
+# roles/db-server/tasks/main.yml
+# Installs and configures MariaDB on Ubuntu.
+# Sets up the cyber_range database used by cyberrange-lab on web-server.
+
+- name: Stop and disable unattended-upgrades
+  systemd:
+    name: unattended-upgrades
+    state: stopped
+    enabled: no
+  ignore_errors: yes
+
+- name: Remove unattended-upgrades permanently
+  apt:
+    name: unattended-upgrades
+    state: absent
+    purge: yes
+  ignore_errors: yes
+
+- name: Install MariaDB + Python bindings
+  apt:
+    name:
+      - mariadb-server
+      - mariadb-client
+      - python3-pymysql
+      - gnupg
+      - curl
+    state: present
+    update_cache: yes
+
+- name: Ensure MariaDB is enabled and started
+  systemd:
+    name: mariadb
+    enabled: yes
+    state: started
+
+# ── VULNERABILITY: bind on all interfaces (network exposure) ─────────────────
+- name: Configure MariaDB to bind on all interfaces (vuln — network exposure)
+  ini_file:
+    path: /etc/mysql/mariadb.conf.d/50-server.cnf
+    section: mysqld
+    option: bind-address
+    value: "0.0.0.0"
+  notify: restart mariadb
+
+- name: Flush handlers to restart MariaDB before DB operations
+  meta: flush_handlers
+
+- name: Wait for MariaDB to be ready after restart
+  wait_for:
+    port: 3306
+    delay: 3
+    timeout: 60
+
+# ── cyber_range database setup ────────────────────────────────────────────────
+- name: Copy cyber_range database initialization script
+  copy:
+    src: init_vulnerable_db.sql
+    dest: /tmp/init_vulnerable_db.sql
+    mode: '0644'
+
+- name: Wait for MariaDB socket
+  wait_for:
+    path: /var/run/mysqld/mysqld.sock
+    timeout: 60
+
+- name: Initialize cyber_range database (create tables + seed data)
+  shell: |
+    mariadb --socket=/var/run/mysqld/mysqld.sock -uroot < /tmp/init_vulnerable_db.sql
+  become: yes
+  ignore_errors: yes
+
+- name: Clean up initialization script
+  file:
+    path: /tmp/init_vulnerable_db.sql
+    state: absent
+
+# ── VULNERABILITY: weak root password ────────────────────────────────────────
+- name: Set weak MariaDB root password (vuln — brute force target)
+  shell: mariadb --socket=/var/run/mysqld/mysqld.sock -uroot -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'root'; FLUSH PRIVILEGES;"
+  become: yes
+  ignore_errors: yes
+
+# ── VULNERABILITY: plant .my.cnf with plaintext credentials ──────────────────
+- name: Ensure student user exists (privesc scenario)
+  user:
+    name: student
+    state: present
+    shell: /bin/bash
+
+- name: Plant .my.cnf with plaintext root creds (vuln — credential exposure)
+  copy:
+    dest: /home/student/.my.cnf
+    content: |
+      [client]
+      user=root
+      password=root
+    owner: student
+    group: student
+    mode: '0644'
+
+# ── FIREWALL ──────────────────────────────────────────────────────────────────
+- name: Allow MariaDB port 3306 from VLAN 20
+  ufw:
+    rule: allow
+    port: '3306'
+    proto: tcp
+    src: '10.0.20.0/24'
+
+# ── VERIFY ────────────────────────────────────────────────────────────────────
+- name: Verify MariaDB is running
+  command: systemctl is-active mariadb
+  register: mariadb_status
+  changed_when: false
+
+- name: Show MariaDB status
+  debug:
+    msg: "MariaDB on {{ inventory_hostname }} is {{ mariadb_status.stdout }} — cyber_range DB ready"

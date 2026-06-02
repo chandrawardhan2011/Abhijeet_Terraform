@@ -1,0 +1,2 @@
+offline_apt_port: 8082
+offline_apt_url: "http://{{offline_repo_host}}:{{offline_apt_port}}"

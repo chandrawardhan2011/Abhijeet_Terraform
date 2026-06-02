@@ -1,0 +1,7 @@
+---
+# roles/ftp-server/handlers/main.yml
+
+- name: restart vsftpd
+  systemd:
+    name: vsftpd
+    state: restarted

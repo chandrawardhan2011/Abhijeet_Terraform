@@ -1,0 +1,22 @@
+---
+# roles/domain-join/tasks/main.yml
+# Joins Windows clients to the pre-configured ADDC (cyberstrike.mil)
+
+- name: Set DNS to point to ADDC
+  ansible.windows.win_dns_client:
+    adapter_names: '*'
+    ipv4_addresses:
+      - "{{ addc_ip }}"
+
+- name: Join domain
+  microsoft.ad.membership:
+    dns_domain_name: "{{ domain_name }}"
+    domain_admin_user: "Administrator@{{ domain_name }}"
+    domain_admin_password: "{{ domain_password }}"
+    state: domain
+  register: join_result
+
+- name: Reboot after domain join
+  ansible.windows.win_reboot:
+    reboot_timeout: 500
+  when: join_result.reboot_required

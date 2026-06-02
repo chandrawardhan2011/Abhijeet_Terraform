@@ -1,0 +1,44 @@
+---
+# ansible/roles/blue-agent-windows/tasks/main.yml
+# Deploys blue_agent_windows.py to windows-1 and windows-addc
+
+- name: Create C:\blue-agent directory
+  win_file:
+    path: 'C:\blue-agent'
+    state: directory
+
+- name: Create C:\Temp directory (for vulb.txt)
+  win_file:
+    path: 'C:\Temp'
+    state: directory
+
+- name: Copy Windows blue agent 
+  win_copy:
+    src: BlueAgent.exe
+    dest: 'C:\blue-agent\BlueAgent.exe'
+
+- name: Copy scheduled task XML
+  win_copy:
+    src: BlueAgent_Task.xml
+    dest: 'C:\blue-agent\BlueAgent_Task.xml'
+
+- name: Register BlueAgent scheduled task
+  win_shell: |
+    $taskName = "BlueAgent"
+    $existing = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    if ($existing) {
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+    }
+    Register-ScheduledTask -TaskName $taskName `
+        -Xml (Get-Content 'C:\blue-agent\BlueAgent_Task.xml' -Raw) `
+        -Force
+  register: task_result
+
+- name: Start BlueAgent scheduled task immediately
+  win_shell: Start-ScheduledTask -TaskName "BlueAgent"
+  ignore_errors: yes
+
+- name: Verify scheduled task is registered
+  win_shell: (Get-ScheduledTask -TaskName "BlueAgent").State
+  register: task_state
+  changed_when: false

@@ -1,0 +1,31 @@
+---
+# playbooks/servers.yml — Run only server configurations
+# Each play configures the offline mirror first, then the service.
+
+- name: Configure offline mirror + Wazuh Server
+  hosts: wazuh_servers
+  become: yes
+  roles:
+    - offline-repo
+    - wazuh-server
+
+- name: Configure offline mirror + Web Servers
+  hosts: web_servers
+  become: yes
+  roles:
+    - offline-repo
+    - web-server
+
+- name: Configure offline mirror + DB Servers
+  hosts: db_servers
+  become: yes
+  roles:
+    - offline-repo
+    - db-server
+
+- name: Configure offline mirror + FTP Servers
+  hosts: ftp_servers
+  become: yes
+  roles:
+    - offline-repo
+    - ftp-server

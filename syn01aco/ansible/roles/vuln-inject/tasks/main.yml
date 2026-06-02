@@ -1,0 +1,136 @@
+---
+# roles/vuln-inject/tasks/main.yml
+# Injects selected vulnerabilities into target VMs.
+# Called by the backend via: ansible-playbook vuln-inject.yml
+# with extra vars: -e "target_host=<ip> vuln_id=<vuln_id> vm_type=<linux|windows>"
+#                  -e "vuln_cve=<cve> vuln_name=<name>"
+#
+# After injection, writes an entry to /tmp/vulb.txt on the TARGET machine:
+# Format: <label>:<cve>:<name>   e.g. LS01:CWE-307:SSH Brute Force  (label passed as extra var from backend)
+# The agent reads this file to know which vulnerabilities to check for.
+
+# ── LINUX TARGETS ─────────────────────────────────────────────────────────────
+- name: Vulnerability injection — Linux targets
+  block:
+    - name: Copy vulnerability script to target
+      copy:
+        src: "scripts/linux/{{ vuln_script | default(vuln_id) }}.sh"
+        dest: "/tmp/vuln_{{ vuln_id }}.sh"
+        mode: "0755"
+
+    - name: Execute vulnerability script
+      command: "bash /tmp/vuln_{{ vuln_id }}.sh"
+      register: vuln_result
+
+    - name: Show injection result
+      debug:
+        msg: "{{ vuln_result.stdout_lines }}"
+
+    - name: Drop injection marker
+      copy:
+        dest: "/tmp/.vuln_injected_{{ vuln_id }}"
+        content: |
+          Vulnerability: {{ vuln_id }}
+          Injected at: {{ ansible_date_time.iso8601 }}
+          Host: {{ inventory_hostname }}
+        mode: "0644"
+
+    # ── Write entry to /tmp/vulb.txt on this machine ──
+    - name: Check if /tmp/vulb.txt exists
+      stat:
+        path: /tmp/vulb.txt
+      register: vulb_stat
+
+    - name: Set serial number (fixed — uses label from VULN_DB)
+      set_fact:
+        vuln_serial: "{{ vuln_label | default(vuln_id) }}"
+
+    - name: Check if this vuln is already logged in /tmp/vulb.txt
+      command: "grep -c ':{{ vuln_name }}$' /tmp/vulb.txt"
+      register: vulb_already_logged
+      when: vulb_stat.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: Append vuln entry to /tmp/vulb.txt on target machine
+      lineinfile:
+        path: /tmp/vulb.txt
+        line: "{{ vuln_serial }}:{{ vuln_cve | default('N/A') }}:{{ vuln_name | default(vuln_id) }}"
+        create: yes
+        mode: "0644"
+      when: >
+        (not vulb_stat.stat.exists) or
+        (vulb_already_logged.stdout is not defined) or
+        ((vulb_already_logged.stdout | default('0')) | int == 0)
+
+  when: vm_type | default('linux') == 'linux'
+  become: yes
+
+# ── WINDOWS TARGETS ───────────────────────────────────────────────────────────
+- name: Vulnerability injection — Windows targets
+  block:
+    - name: Copy PowerShell vulnerability script to target
+      win_copy:
+        src: "scripts/windows/{{ vuln_script | default(vuln_id) }}.ps1"
+        dest: "C:\\Windows\\Temp\\vuln_{{ vuln_id }}.ps1"
+
+    - name: Execute PowerShell vulnerability script
+      win_command: >
+        powershell -ExecutionPolicy Bypass
+        -File "C:\Windows\Temp\vuln_{{ vuln_id }}.ps1"
+      register: vuln_result_win
+
+    - name: Show injection result
+      debug:
+        msg: "{{ vuln_result_win.stdout_lines }}"
+
+    - name: Drop injection marker
+      win_copy:
+        dest: "C:\\Windows\\Temp\\.vuln_injected_{{ vuln_id }}.txt"
+        content: |
+          Vulnerability: {{ vuln_id }}
+          Injected at: {{ ansible_date_time.iso8601 }}
+          Host: {{ inventory_hostname }}
+
+    # ── Write entry to C:\Temp\vulb.txt on this Windows machine ──
+    - name: Ensure C:\Temp directory exists
+      win_file:
+        path: 'C:\Temp'
+        state: directory
+
+    - name: Check if C:\Temp\vulb.txt exists
+      win_stat:
+        path: 'C:\Temp\vulb.txt'
+      register: vulb_stat_win
+
+    - name: Count existing entries in C:\Temp\vulb.txt
+      win_command: >
+        powershell -Command "(Get-Content 'C:\Temp\vulb.txt' | Measure-Object -Line).Lines"
+      register: vulb_line_count_win
+      when: vulb_stat_win.stat.exists
+      changed_when: false
+
+    - name: Set serial number Windows (fixed — uses label from VULN_DB)
+      set_fact:
+        vuln_serial_win: "{{ vuln_label | default(vuln_id) }}"
+
+    - name: Check if this vuln is already logged in C:\Temp\vulb.txt
+      win_command: >
+        powershell -Command
+        "(Select-String -Path 'C:\Temp\vulb.txt' -Pattern ':{{ vuln_name }}$' -Quiet)"
+      register: vulb_already_logged_win
+      when: vulb_stat_win.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: Append vuln entry to C:\Temp\vulb.txt on target machine
+      win_lineinfile:
+        path: 'C:\Temp\vulb.txt'
+        line: "{{ vuln_serial_win }}:{{ vuln_cve | default('N/A') }}:{{ vuln_name | default(vuln_id) }}"
+        create: yes
+      when: >
+        (not vulb_stat_win.stat.exists) or
+        (vulb_already_logged_win.stdout is not defined) or
+        ('True' not in (vulb_already_logged_win.stdout | default('')))
+
+  when: vm_type | default('linux') == 'windows'

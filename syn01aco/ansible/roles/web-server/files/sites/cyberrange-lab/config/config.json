@@ -1,0 +1,9 @@
+{
+  "enabled_vulnerabilities": [
+    "sqli",
+    "xss",
+    "idor",
+    "lfi"
+  ],
+  "difficulty": "medium"
+}

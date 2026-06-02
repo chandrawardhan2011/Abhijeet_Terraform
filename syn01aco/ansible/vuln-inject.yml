@@ -1,0 +1,15 @@
+---
+# ansible/vuln-inject.yml
+# Standalone playbook for vulnerability injection.
+# Called by backend with: -e "target_host=<ip> vuln_id=<id> vm_type=<linux|windows>"
+#
+# Example:
+#   ansible-playbook vuln-inject.yml -i inventory/hosts.ini \
+#     -e "target_host=10.0.20.200 vuln_id=ssh_brute_force vm_type=linux"
+
+- name: Inject Vulnerability into Target VM
+  hosts: "{{ target_host }}"
+  gather_facts: yes
+  become: no
+  roles:
+    - vuln-inject

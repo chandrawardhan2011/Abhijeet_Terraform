@@ -1,0 +1,34 @@
+# group_vars/web_servers.yml
+# ─────────────────────────────────────────────────────────────────────────────
+# WEB SERVER CONFIGURATION
+# ─────────────────────────────────────────────────────────────────────────────
+# Two labs are hosted on separate ports:
+#
+#  A) vulnlab        (:9001) — Configurable training lab
+#     - 5 vulnerability classes (SQLi, XSS, IDOR, CMDi, LFI)
+#     - 3 difficulty levels (easy / medium / hard)
+#     - State controlled via POST /api/configure
+#     - SQLite DB (self-contained, no external DB needed)
+#     - Files: roles/web-server/files/sites/vulnlab/
+#
+#  B) cyberrange-lab (:9002) — Live fire lab (all vulns always active)
+#     - SQLi, XSS, IDOR, LFI always on
+#     - Connects to MariaDB on db-server (10.0.20.30) — cyber_range DB
+#     - DB server MUST be deployed before this (site.yml enforces order)
+#     - Files: roles/web-server/files/sites/cyberrange-lab/
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ICP app removed — set to false
+deploy_icp: false
+
+# ── Website definitions ───────────────────────────────────────────────────────
+websites:
+  # Training lab — configurable vulnerabilities, 3 difficulty levels
+  - name: vulnlab
+    port: 9001
+    php: true
+
+  # Live fire lab — all vulnerabilities active, uses db-server MariaDB
+  - name: cyberrange-lab
+    port: 9002
+    php: true

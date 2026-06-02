@@ -1,0 +1,17 @@
+[Unit]
+Description=Blue Team CyberRange Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/blue-agent
+ExecStart=/usr/bin/python3 /opt/blue-agent/blue_agent_kali.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

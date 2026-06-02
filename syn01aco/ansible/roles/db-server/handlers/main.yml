@@ -1,0 +1,7 @@
+---
+# roles/db-server/handlers/main.yml
+
+- name: restart mariadb
+  systemd:
+    name: mariadb
+    state: restarted

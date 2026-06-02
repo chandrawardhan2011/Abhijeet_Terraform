@@ -1,0 +1,45 @@
+# {{ item.name }} — managed by Ansible, do not edit by hand
+Listen {{ item.port }}
+
+<VirtualHost *:{{ item.port }}>
+    ServerName {{ ansible_host | default(inventory_hostname) }}
+    DocumentRoot /var/www/{{ item.name }}
+
+    <Directory /var/www/{{ item.name }}>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+
+        RewriteEngine On
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+{% if item.name == 'vulnlab' %}
+        # vulnlab API routes
+        RewriteRule ^api/(configure|state|reset)$ api/$1.php [L]
+        RewriteRule ^public/ - [L]
+        # Block direct access to sensitive dirs
+        RewriteRule ^pages/    - [F]
+        RewriteRule ^handlers/ - [F]
+        RewriteRule ^views/    - [F]
+        RewriteRule ^config\.php$ - [F]
+{% endif %}
+    </Directory>
+
+{% if item.name == 'vulnlab' %}
+    # Pass state dir path to PHP via env var
+    SetEnv VULNLAB_STATE_DIR /var/lib/vulnlab
+{% endif %}
+
+{% if item.php | default(false) %}
+    # PHP enabled for this site
+    DirectoryIndex index.php index.html
+    <FilesMatch \.php$>
+        SetHandler application/x-httpd-php
+    </FilesMatch>
+{% else %}
+    DirectoryIndex index.html index.htm
+{% endif %}
+
+    ErrorLog ${APACHE_LOG_DIR}/{{ item.name }}-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ item.name }}-access.log combined
+</VirtualHost>

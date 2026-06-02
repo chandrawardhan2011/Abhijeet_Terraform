@@ -1,0 +1,50 @@
+---
+# ansible/roles/blue-agent-linux/tasks/main.yml
+# Deploys blue_agent_linux.py to all Linux machines as a systemd service
+
+- name: Create /opt/blue-agent directory
+  file:
+    path: /opt/blue-agent
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Copy Linux blue agent script
+  copy:
+    src: blue_agent_linux.py
+    dest: /opt/blue-agent/blue_agent_linux.py
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install requests library
+  pip:
+    name: requests
+    executable: pip3
+    extra_args: --break-system-packages
+  ignore_errors: yes
+
+- name: Copy systemd service unit
+  copy:
+    src: blue-agent.service
+    dest: /etc/systemd/system/blue-agent.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+
+- name: Enable and start blue-agent service
+  systemd:
+    name: blue-agent
+    enabled: yes
+    state: started
+
+- name: Verify blue-agent is running
+  command: systemctl is-active blue-agent
+  register: agent_status
+  changed_when: false
+  failed_when: agent_status.stdout != 'active'
