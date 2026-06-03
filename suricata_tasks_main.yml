@@ -2,22 +2,24 @@
 # ansible/roles/suricata/tasks/main.yml
 # Installs Suricata in IDS (passive) mode — FULLY OFFLINE
 #
-# Prerequisites (handled by setup-offline-mirror.sh):
-#   Linux  — suricata .deb packages served via offline apt mirror
-#   Windows — Suricata-8.0.5-1-64bit.msi in roles/suricata/files/
+# Prerequisites:
+#   Linux  — Suricata pre-installed in Ubuntu template (apt install suricata)
+#   Windows — Suricata + Npcap pre-installed in Windows golden template
 #   Both   — rules/ folder (ET Open) in roles/suricata/files/rules/
 #
-# No internet access is required on any target during this playbook.
+# Ansible only handles: config deployment, rules copy, service start, Wazuh integration
 
 # ── Linux ─────────────────────────────────────────────────────────────────────
 - name: Suricata Linux block
   block:
 
-    - name: Install Suricata from offline apt mirror
-      apt:
-        name: suricata
-        state: present
-        update_cache: yes
+    - name: Ensure /etc/suricata directory exists
+      file:
+        path: /etc/suricata
+        state: directory
+        owner: root
+        group: suricata
+        mode: '0750'
 
     - name: Deploy suricata.yaml from template
       template:
@@ -59,8 +61,7 @@
         enabled: yes
         state: started
 
-    # Skip on wazuh-server-1 — that host runs wazuh-manager not wazuh-agent
-    # so the service name is different and ossec.conf is managed separately
+    # Skip on wazuh-server-1 — runs wazuh-manager not wazuh-agent
     - name: Add Suricata eve.json to Wazuh agent config
       blockinfile:
         path: /var/ossec/etc/ossec.conf
@@ -78,32 +79,17 @@
     - name: Drop install marker
       copy:
         dest: /etc/suricata/.ansible_installed
-        content: "Suricata installed by Ansible {{ ansible_date_time.iso8601 }}\n"
+        content: "Suricata configured by Ansible {{ ansible_date_time.iso8601 }}\n"
         mode: '0644'
 
   when: ansible_os_family == "Debian"
   become: yes
 
 # ── Windows ───────────────────────────────────────────────────────────────────
+# Suricata + Npcap pre-installed in golden template
+# Ansible only deploys config, copies rules, starts service, updates Wazuh
 - name: Suricata Windows block
   block:
-
-    - name: Ensure C:\Temp exists
-      win_file:
-        path: 'C:\Temp'
-        state: directory
-
-    - name: Copy Suricata MSI from Ansible controller to target
-      win_copy:
-        src: files/Suricata-8.0.5-1-64bit.msi
-        dest: 'C:\Temp\Suricata-8.0.5-1-64bit.msi'
-
-    - name: Install Suricata silently from copied MSI
-      win_package:
-        path: 'C:\Temp\Suricata-8.0.5-1-64bit.msi'
-        arguments: '/quiet /norestart INSTALLDIR="C:\Program Files\Suricata"'
-        state: present
-        creates_path: 'C:\Program Files\Suricata\suricata.exe'
 
     - name: Ensure rules directory exists
       win_file:
@@ -125,20 +111,6 @@
         src: files/rules/
         dest: 'C:\Program Files\Suricata\rules\'
 
-    # Use win_shell with Start-Process to ensure elevated execution
-    - name: Install Suricata as Windows service
-      win_shell: >
-        Start-Process
-        -FilePath "C:\Program Files\Suricata\suricata.exe"
-        -ArgumentList "--service-install -c `"C:\Program Files\Suricata\suricata.yaml`""
-        -Verb RunAs -Wait
-      register: svc_install
-      failed_when:
-        - svc_install.rc is defined
-        - svc_install.rc != 0
-        - "'already' not in (svc_install.stderr | lower | default(''))"
-      ignore_errors: yes
-
     - name: Ensure Suricata service is running and auto-start
       win_service:
         name: Suricata
@@ -156,7 +128,7 @@
 
     - name: Drop install marker
       win_copy:
-        dest: 'C:\Program Files\Suricata\.ansible_installed'
-        content: "Suricata installed by Ansible {{ ansible_date_time.iso8601 }}"
+        dest: 'C:\Program Files\Suricata\.ansible_configured'
+        content: "Suricata configured by Ansible {{ ansible_date_time.iso8601 }}"
 
   when: ansible_os_family == "Windows"
