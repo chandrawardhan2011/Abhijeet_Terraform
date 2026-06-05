@@ -1,0 +1,42 @@
+---
+# =============================================================================
+# CyberRange SYN-01 — Windows Patch Playbook
+# Called by the Operator Panel backend (main.py) via ansible-playbook
+# Variables passed at runtime:
+#   -e "target_host=windows-1 patch_script=roles/patch/files/patch_windows_client.ps1"
+# =============================================================================
+- name: Patch Windows target
+  hosts: "{{ target_host }}"
+  gather_facts: false
+  tasks:
+
+    - name: Ensure C:\Temp exists
+      ansible.windows.win_file:
+        path: 'C:\Temp'
+        state: directory
+
+    - name: Copy patch script to target
+      ansible.windows.win_copy:
+        src: "{{ patch_script }}"
+        dest: 'C:/Temp/{{ patch_script | basename }}'
+
+    - name: Execute patch script
+      ansible.windows.win_shell: >
+        powershell.exe -ExecutionPolicy Bypass -NonInteractive
+        -File "C:\Temp\{{ patch_script | basename }}"
+      register: patch_out
+      ignore_errors: true
+
+    - name: Show patch output
+      debug:
+        var: patch_out.stdout_lines
+
+    - name: Show patch errors if any
+      debug:
+        var: patch_out.stderr_lines
+      when: patch_out.stderr_lines | length > 0
+
+    - name: Remove patch script from target
+      ansible.windows.win_file:
+        path: 'C:/Temp/{{ patch_script | basename }}'
+        state: absent
