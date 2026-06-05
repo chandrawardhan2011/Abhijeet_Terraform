@@ -1,0 +1,250 @@
+---
+# roles/web-server/tasks/main.yml
+# Hosts your OWN simple websites, each on its own custom port.
+# Websites are defined in the 'websites:' list in group_vars/web_servers.yml
+# Website files live in roles/web-server/files/sites/<name>/
+#
+# This role runs AFTER icp-website, so Apache is usually already installed.
+# It only manages vhosts for the sites in the 'websites' list — it never
+# touches the ICP vhost (icp.conf).
+#
+# If the 'websites' list is empty, this role does nothing.
+
+- name: Stop and disable unattended-upgrades
+  systemd:
+    name: unattended-upgrades
+    state: stopped
+    enabled: no
+  ignore_errors: yes
+
+- name: Remove unattended-upgrades permanently
+  apt:
+    name: unattended-upgrades
+    state: absent
+    purge: yes
+  ignore_errors: yes
+
+- name: Skip web-server role (no custom websites defined)
+  meta: end_play
+  when: websites | default([]) | length == 0
+
+# ── FILTER WEBSITES BY lab_mode ──────────────────────────────────────────────
+# lab_mode is passed via -e from the operator panel (main.py):
+#   "training"  → vulnlab only    (port 9001)
+#   "exercise"  → cyberrange-lab  (port 9002)
+#   "both"      → both sites      (default — scenario 1 / 3 blue team)
+- name: Set active websites based on lab_mode
+  set_fact:
+    active_websites: >-
+      {{
+        active_websites | selectattr('name','equalto','vulnlab') | list
+        if (lab_mode | default('both')) == 'training'
+        else (
+          active_websites | selectattr('name','equalto','cyberrange-lab') | list
+          if (lab_mode | default('both')) == 'exercise'
+          else websites_all
+        )
+      }}
+
+- name: Show lab_mode and active websites
+  debug:
+    msg: "lab_mode={{ lab_mode | default('both') }} — deploying: {{ active_websites | map(attribute='name') | list }}"
+
+# ── INSTALL APACHE (usually already present from icp-website) ─────────────────
+
+- name: Install Apache2
+  apt:
+    name:
+      - apache2
+      - apache2-utils
+    state: present
+    update_cache: yes
+
+# ── INSTALL PHP (only if at least one site needs it) ─────────────────────────
+
+- name: Check if any website needs PHP
+  set_fact:
+    php_needed: "{{ active_websites | selectattr('php', 'defined') | selectattr('php') | list | length > 0 }}"
+
+- name: Install PHP for Apache
+  apt:
+    name:
+      - php
+      - libapache2-mod-php
+      - php-mysql
+      - php-sqlite3
+      - php-cli
+      - php-mbstring
+    state: present
+  when: php_needed | bool
+
+- name: Enable required Apache modules
+  apache2_module:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - rewrite
+    - headers
+  notify: restart apache2
+
+# ── VULNLAB STATE DIRECTORY ──────────────────────────────────────────────────
+# vulnlab stores state.json and lab.sqlite outside the web root
+- name: Create vulnlab state directory
+  file:
+    path: /var/lib/vulnlab
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0750'
+  when: active_websites | selectattr('name','equalto','vulnlab') | list | length > 0
+
+- name: Create vulnlab flag file
+  copy:
+    dest: /var/lib/vulnlab/.flag
+    content: "FLAG{vulnlab_filesystem_pwned}
+"
+    owner: www-data
+    group: www-data
+    mode: '0640'
+  when: active_websites | selectattr('name','equalto','vulnlab') | list | length > 0
+
+- name: Create vulnlab db directory
+  file:
+    path: /var/www/vulnlab/db
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0750'
+  when: active_websites | selectattr('name','equalto','vulnlab') | list | length > 0
+
+- name: Copy vulnlab seed SQL
+  copy:
+    src: sites/vulnlab/db/seed.sql
+    dest: /var/www/vulnlab/db/seed.sql
+    owner: www-data
+    group: www-data
+    mode: '0640'
+  when: active_websites | selectattr('name','equalto','vulnlab') | list | length > 0
+
+- name: Remove old vulnlab SQLite to force reinit
+  file:
+    path: /var/lib/vulnlab/lab.sqlite
+    state: absent
+  when: active_websites | selectattr('name','equalto','vulnlab') | list | length > 0
+
+# ── CREATE EACH WEBSITE ───────────────────────────────────────────────────────
+
+- name: Create document root for each website
+  file:
+    path: "/var/www/{{ item.name }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+  loop: "{{ active_websites }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Copy website files (your HTML/PHP) to each document root
+  copy:
+    src: "sites/{{ item.name }}/"
+    dest: "/var/www/{{ item.name }}/"
+    owner: www-data
+    group: www-data
+    mode: '0644'
+  loop: "{{ active_websites }}"
+  loop_control:
+    label: "{{ item.name }}"
+  # If a site folder doesn't exist yet, don't fail the play — just skip it
+  ignore_errors: yes
+  register: site_copy
+
+- name: Drop a placeholder index for any site with no files yet
+  copy:
+    dest: "/var/www/{{ item.item.name }}/index.html"
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head><title>{{ item.item.name }}</title></head>
+      <body style="font-family:sans-serif;background:#0a0a0a;color:#0f0;text-align:center;padding-top:80px">
+        <h1>{{ item.item.name }}</h1>
+        <p>Site placeholder - drop your files in roles/web-server/files/sites/{{ item.item.name }}/</p>
+        <p>Served on port {{ item.item.port }} by {{ inventory_hostname }}</p>
+      </body>
+      </html>
+    owner: www-data
+    group: www-data
+    mode: '0644'
+  loop: "{{ site_copy.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item is failed
+
+- name: Deploy Apache virtual host config for each website
+  template:
+    src: vhost.conf.j2
+    dest: "/etc/apache2/sites-available/{{ item.name }}.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ active_websites }}"
+  loop_control:
+    label: "{{ item.name }} (port {{ item.port }})"
+  notify: restart apache2
+
+- name: Enable each website virtual host
+  command: "a2ensite {{ item.name }}.conf"
+  args:
+    creates: "/etc/apache2/sites-enabled/{{ item.name }}.conf"
+  loop: "{{ active_websites }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: restart apache2
+
+# ── FIREWALL - open every website port ───────────────────────────────────────
+
+- name: Allow each website port through UFW
+  ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: tcp
+  loop: "{{ active_websites }}"
+  loop_control:
+    label: "port {{ item.port }}"
+
+- name: Allow HTTPS through UFW
+  ufw:
+    rule: allow
+    port: '443'
+    proto: tcp
+
+# ── START + VERIFY ────────────────────────────────────────────────────────────
+
+- name: Ensure Apache2 is enabled and running
+  systemd:
+    name: apache2
+    enabled: yes
+    state: started
+
+- name: Force apache restart now to apply all vhosts
+  systemd:
+    name: apache2
+    state: restarted
+
+- name: Verify each website is responding
+  uri:
+    url: "http://{{ ansible_host | default(inventory_hostname) }}:{{ item.port }}"
+    status_code: 200
+  loop: "{{ active_websites }}"
+  loop_control:
+    label: "{{ item.name }}:{{ item.port }}"
+  register: web_checks
+  retries: 3
+  delay: 5
+  ignore_errors: yes
+
+- name: Show hosted websites summary
+  debug:
+    msg: >
+      {{ inventory_hostname }} is hosting {{ active_websites | length }} website(s):
+      {% for w in active_websites %}{{ w.name }}(:{{ w.port }}){% if not loop.last %}, {% endif %}{% endfor %}
