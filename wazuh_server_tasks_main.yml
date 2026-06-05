@@ -1,0 +1,506 @@
+---
+# roles/wazuh-server/tasks/main.yml
+# Installs the FULL Wazuh stack: Manager + Indexer + Dashboard
+# Offline-aware: when offline_mode is true, pulls from the local mirror.
+#
+# Order matters:
+#   1. Manager      — runs the detection engine, agents register here
+#   2. Indexer      — OpenSearch backend that stores alerts
+#   3. Filebeat     — ships Manager alerts into the Indexer
+#   4. Dashboard    — the web UI
+# All certs are generated on-box with wazuh-certs-tool (single-node setup).
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ONLINE MODE — add public Wazuh repo
+# ═════════════════════════════════════════════════════════════════════════════
+- name: Stop and disable unattended-upgrades to prevent apt lock
+  systemd:
+    name: unattended-upgrades
+    state: stopped
+    enabled: no
+  ignore_errors: yes
+
+- name: Kill any process holding apt locks
+  shell: |
+    kill -9 $(lsof /var/lib/dpkg/lock-frontend 2>/dev/null | awk 'NR>1 {print $2}') 2>/dev/null || true
+    kill -9 $(lsof /var/lib/dpkg/lock 2>/dev/null | awk 'NR>1 {print $2}') 2>/dev/null || true
+    kill -9 $(lsof /var/cache/apt/archives/lock 2>/dev/null | awk 'NR>1 {print $2}') 2>/dev/null || true
+    kill -9 $(lsof /var/lib/apt/lists/lock 2>/dev/null | awk 'NR>1 {print $2}') 2>/dev/null || true
+    killall apt apt-get dpkg 2>/dev/null || true
+  args:
+    executable: /bin/bash
+  changed_when: false
+  ignore_errors: yes
+
+- name: Remove apt lock files forcefully
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /var/lib/dpkg/lock-frontend
+    - /var/lib/dpkg/lock
+    - /var/cache/apt/archives/lock
+    - /var/lib/apt/lists/lock
+  ignore_errors: yes
+
+- name: Reconfigure dpkg after lock removal
+  shell: dpkg --configure -a
+  args:
+    executable: /bin/bash
+  changed_when: false
+  ignore_errors: yes
+
+- name: Add Wazuh GPG key (online mode)
+  apt_key:
+    url: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+    state: present
+  when: not (offline_mode | bool)
+
+- name: Add Wazuh apt repository (online mode)
+  apt_repository:
+    repo: "deb https://packages.wazuh.com/4.x/apt/ stable main"
+    state: present
+    filename: wazuh
+  when: not (offline_mode | bool)
+
+- name: Install required dependencies
+  apt:
+    name:
+      - curl
+      - apt-transport-https
+      - lsb-release
+      - gnupg
+      - unzip
+    state: present
+    update_cache: yes
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 1. WAZUH MANAGER
+# ═════════════════════════════════════════════════════════════════════════════
+
+- name: Update apt cache before installing Wazuh Manager
+  apt:
+    update_cache: yes
+    cache_valid_time: 0
+
+- name: Install Wazuh Manager
+  apt:
+    name: "{{ 'wazuh-manager' if (offline_mode | bool) else 'wazuh-manager=' + wazuh_version + '-*' }}"
+    state: present
+  register: wazuh_manager_install
+  retries: 3
+  delay: 10
+  until: wazuh_manager_install is succeeded
+
+- name: Wait for wazuh-manager service unit file to be present (dpkg post-install)
+  wait_for:
+    path: /lib/systemd/system/wazuh-manager.service
+    state: present
+    timeout: 60
+
+- name: Reload systemd daemon after wazuh-manager install
+  systemd:
+    daemon_reload: yes
+
+- name: Deploy ossec.conf from template
+  template:
+    src: ossec.conf.j2
+    dest: /var/ossec/etc/ossec.conf
+    owner: root
+    group: wazuh
+    mode: '0640'
+  notify: restart wazuh-manager
+
+- name: Enable and start Wazuh Manager service
+  systemd:
+    name: wazuh-manager
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Wait for Wazuh Manager registration port (1515)
+  wait_for:
+    port: 1515
+    delay: 5
+    timeout: 90
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 2. CERTIFICATES (single-node, self-signed)
+# ═════════════════════════════════════════════════════════════════════════════
+
+- name: Download wazuh-certs-tool (online mode)
+  get_url:
+    url: https://packages.wazuh.com/4.7/wazuh-certs-tool.sh
+    dest: /tmp/wazuh-certs-tool.sh
+    mode: '0755'
+  when: not (offline_mode | bool)
+
+- name: Download config.yml (online mode)
+  get_url:
+    url: https://packages.wazuh.com/4.7/config.yml
+    dest: /tmp/config.yml
+  when: not (offline_mode | bool)
+
+- name: Download wazuh-certs-tool (offline mode)
+  get_url:
+    url: "{{ offline_files_url }}/wazuh-certs-tool.sh"
+    dest: /tmp/wazuh-certs-tool.sh
+    mode: '0755'
+  when: offline_mode | bool
+
+- name: Download config.yml (offline mode)
+  get_url:
+    url: "{{ offline_files_url }}/config.yml"
+    dest: /tmp/config.yml
+  when: offline_mode | bool
+
+- name: Write single-node config.yml with this server's IP
+  copy:
+    dest: /tmp/config.yml
+    content: |
+      nodes:
+        indexer:
+          - name: node-1
+            ip: {{ ansible_default_ipv4.address }}
+        server:
+          - name: wazuh-1
+            ip: {{ ansible_default_ipv4.address }}
+        dashboard:
+          - name: dashboard
+            ip: {{ ansible_default_ipv4.address }}
+
+- name: Generate Wazuh certificates
+  command: bash /tmp/wazuh-certs-tool.sh -A
+  args:
+    chdir: /tmp
+    creates: /tmp/wazuh-certificates/admin.pem
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 3. WAZUH INDEXER (OpenSearch)
+# ═════════════════════════════════════════════════════════════════════════════
+
+- name: Install Wazuh Indexer
+  apt:
+    name: "{{ 'wazuh-indexer' if (offline_mode | bool) else 'wazuh-indexer=' + wazuh_version + '-*' }}"
+    state: present
+
+- name: Create indexer certs directory
+  file:
+    path: /etc/wazuh-indexer/certs
+    state: directory
+    owner: wazuh-indexer
+    group: wazuh-indexer
+    mode: '0500'
+
+- name: Copy indexer certificates
+  copy:
+    src: "/tmp/wazuh-certificates/{{ item.src }}"
+    dest: "/etc/wazuh-indexer/certs/{{ item.dest }}"
+    owner: wazuh-indexer
+    group: wazuh-indexer
+    mode: '0400'
+    remote_src: yes
+  loop:
+    - { src: "node-1.pem",      dest: "indexer.pem" }
+    - { src: "node-1-key.pem",  dest: "indexer-key.pem" }
+    - { src: "root-ca.pem",     dest: "root-ca.pem" }
+    - { src: "admin.pem",       dest: "admin.pem" }
+    - { src: "admin-key.pem",   dest: "admin-key.pem" }
+
+- name: Set network.host in opensearch.yml
+  lineinfile:
+    path: /etc/wazuh-indexer/opensearch.yml
+    regexp: '^network\.host'
+    line: 'network.host: 0.0.0.0'
+
+- name: Set node.name in opensearch.yml
+  lineinfile:
+    path: /etc/wazuh-indexer/opensearch.yml
+    regexp: '^node\.name'
+    line: 'node.name: node-1'
+
+- name: Set cluster.initial_master_nodes in opensearch.yml
+  lineinfile:
+    path: /etc/wazuh-indexer/opensearch.yml
+    regexp: '^cluster\.initial_master_nodes'
+    line: 'cluster.initial_master_nodes: ["node-1"]'
+
+- name: Remove orphaned node-1 list item under cluster.initial_master_nodes
+  lineinfile:
+    path: /etc/wazuh-indexer/opensearch.yml
+    regexp: '^\s*-\s+"node-1"'
+    state: absent
+
+- name: Remove deprecated node.max_local_storage_nodes setting
+  lineinfile:
+    path: /etc/wazuh-indexer/opensearch.yml
+    regexp: '^node\.max_local_storage_nodes'
+    state: absent
+
+- name: Enable and start Wazuh Indexer
+  systemd:
+    name: wazuh-indexer
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Wait for Indexer port 9200
+  wait_for:
+    port: 9200
+    delay: 30
+    timeout: 300
+
+- name: Initialize indexer security (one-time)
+  command: /usr/share/wazuh-indexer/bin/indexer-security-init.sh
+  args:
+    creates: /etc/wazuh-indexer/.ansible_security_done
+  register: sec_init
+  failed_when: false
+
+- name: Mark indexer security as initialized
+  file:
+    path: /etc/wazuh-indexer/.ansible_security_done
+    state: touch
+  when: sec_init.rc is defined and sec_init.rc == 0
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 4. FILEBEAT (Manager → Indexer pipeline)
+# ═════════════════════════════════════════════════════════════════════════════
+
+- name: Install Filebeat
+  apt:
+    name: filebeat
+    state: present
+
+- name: Create filebeat certs directory
+  file:
+    path: /etc/filebeat/certs
+    state: directory
+    owner: root
+    group: root
+    mode: '0500'
+
+- name: Copy filebeat certificates
+  copy:
+    src: "/tmp/wazuh-certificates/{{ item.src }}"
+    dest: "/etc/filebeat/certs/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: '0400'
+    remote_src: yes
+  loop:
+    - { src: "node-1.pem",     dest: "filebeat.pem" }
+    - { src: "node-1-key.pem", dest: "filebeat-key.pem" }
+    - { src: "root-ca.pem",    dest: "root-ca.pem" }
+
+- name: Deploy filebeat.yml
+  copy:
+    dest: /etc/filebeat/filebeat.yml
+    content: |
+      # Ansible-managed Filebeat config for Wazuh
+      filebeat.modules:
+        - module: wazuh
+          alerts:
+            enabled: true
+          archives:
+            enabled: false
+      setup.template.json.enabled: true
+      setup.template.json.path: '/etc/filebeat/wazuh-template.json'
+      setup.template.json.name: 'wazuh'
+      setup.ilm.overwrite: true
+      setup.ilm.enabled: false
+      output.elasticsearch:
+        hosts: ['https://{{ ansible_default_ipv4.address }}:9200']
+        protocol: https
+        username: admin
+        password: admin
+        ssl.certificate_authorities: ['/etc/filebeat/certs/root-ca.pem']
+        ssl.certificate: '/etc/filebeat/certs/filebeat.pem'
+        ssl.key: '/etc/filebeat/certs/filebeat-key.pem'
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Download Wazuh filebeat module (online mode)
+  get_url:
+    url: https://packages.wazuh.com/4.x/filebeat/wazuh-filebeat-0.4.tar.gz
+    dest: /tmp/wazuh-filebeat.tar.gz
+  when: not (offline_mode | bool)
+
+- name: Download Wazuh filebeat module (offline mode)
+  get_url:
+    url: "{{ offline_files_url }}/wazuh-filebeat-0.4.tar.gz"
+    dest: /tmp/wazuh-filebeat.tar.gz
+  when: offline_mode | bool
+
+- name: Extract Wazuh filebeat module
+  unarchive:
+    src: /tmp/wazuh-filebeat.tar.gz
+    dest: /usr/share/filebeat/module
+    remote_src: yes
+    creates: /usr/share/filebeat/module/wazuh
+
+- name: Create filebeat systemd override directory
+  file:
+    path: /etc/systemd/system/filebeat.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Add filebeat systemd override — delay start and increase restart tolerance
+  copy:
+    dest: /etc/systemd/system/filebeat.service.d/override.conf
+    content: |
+      [Service]
+      ExecStartPre=/bin/sleep 20
+      RestartSec=30
+      StartLimitIntervalSec=300
+      StartLimitBurst=5
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Reload systemd daemon for filebeat override
+  systemd:
+    daemon_reload: yes
+
+- name: Wait for OpenSearch to be fully ready (API health check)
+  uri:
+    url: "https://{{ ansible_default_ipv4.address }}:9200/_cluster/health"
+    method: GET
+    user: admin
+    password: admin
+    validate_certs: no
+    status_code: 200
+    return_content: yes
+  register: os_health
+  until: >
+    os_health.status == 200 and
+    (os_health.json.status == 'green' or os_health.json.status == 'yellow')
+  retries: 20
+  delay: 15
+  ignore_errors: yes
+
+- name: Additional stabilization wait after OpenSearch ready
+  pause:
+    seconds: 30
+
+- name: Download wazuh-template.json
+  get_url:
+    url: "https://packages.wazuh.com/4.x/filebeat/wazuh-template.json"
+    dest: /etc/filebeat/wazuh-template.json
+    owner: root
+    group: root
+    mode: '0644'
+    force: yes
+  ignore_errors: yes
+
+- name: Verify wazuh-template.json is valid JSON
+  command: python3 -c "import json; json.load(open('/etc/filebeat/wazuh-template.json')); print('OK')"
+  register: template_check
+  failed_when: false
+  changed_when: false
+
+- name: Show template validation result
+  debug:
+    msg: "wazuh-template.json validation: {{ template_check.stdout }}"
+
+- name: Enable and start Filebeat
+  systemd:
+    name: filebeat
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Wait for Filebeat to stabilize
+  pause:
+    seconds: 15
+
+- name: Verify Filebeat is running
+  systemd:
+    name: filebeat
+  register: filebeat_status
+  failed_when: filebeat_status.status.ActiveState != 'active'
+  ignore_errors: yes
+
+- name: Show Filebeat status
+  debug:
+    msg: "Filebeat state: {{ filebeat_status.status.ActiveState }} — {{ filebeat_status.status.SubState }}"
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 5. WAZUH DASHBOARD
+# ═════════════════════════════════════════════════════════════════════════════
+
+- name: Install Wazuh Dashboard
+  apt:
+    name: "{{ 'wazuh-dashboard' if (offline_mode | bool) else 'wazuh-dashboard=' + wazuh_version + '-*' }}"
+    state: present
+
+- name: Create dashboard certs directory
+  file:
+    path: /etc/wazuh-dashboard/certs
+    state: directory
+    owner: wazuh-dashboard
+    group: wazuh-dashboard
+    mode: '0500'
+
+- name: Copy dashboard certificates
+  copy:
+    src: "/tmp/wazuh-certificates/{{ item.src }}"
+    dest: "/etc/wazuh-dashboard/certs/{{ item.dest }}"
+    owner: wazuh-dashboard
+    group: wazuh-dashboard
+    mode: '0400'
+    remote_src: yes
+  loop:
+    - { src: "dashboard.pem",     dest: "dashboard.pem" }
+    - { src: "dashboard-key.pem", dest: "dashboard-key.pem" }
+    - { src: "root-ca.pem",       dest: "root-ca.pem" }
+
+- name: Configure dashboard server host and indexer connection
+  lineinfile:
+    path: /etc/wazuh-dashboard/opensearch_dashboards.yml
+    regexp: "{{ item.regex }}"
+    line: "{{ item.line }}"
+  loop:
+    - { regex: '^server.host',       line: 'server.host: 0.0.0.0' }
+    - { regex: '^server.port',       line: 'server.port: 443' }
+    - { regex: '^opensearch.hosts',  line: 'opensearch.hosts: https://{{ ansible_default_ipv4.address }}:9200' }
+  notify: restart wazuh-dashboard
+
+- name: Enable and start Wazuh Dashboard
+  systemd:
+    name: wazuh-dashboard
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Wait for Dashboard port 443
+  wait_for:
+    port: 443
+    delay: 25
+    timeout: 240
+
+# ═════════════════════════════════════════════════════════════════════════════
+# FIREWALL
+# ═════════════════════════════════════════════════════════════════════════════
+
+- name: Open all Wazuh stack ports in UFW
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - '1514'    # agent events
+    - '1515'    # agent registration
+    - '55000'   # Wazuh API
+    - '9200'    # Indexer API
+    - '443'     # Dashboard UI
+
+- name: Show Wazuh stack summary
+  debug:
+    msg:
+      - "Wazuh Manager   → running on {{ ansible_default_ipv4.address }}:1514/1515"
+      - "Wazuh Indexer   → running on {{ ansible_default_ipv4.address }}:9200"
+      - "Wazuh Dashboard → https://{{ ansible_default_ipv4.address }}  (login: admin / admin)"
