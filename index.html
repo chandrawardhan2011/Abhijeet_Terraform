@@ -1,0 +1,2306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CYBERRANGE // OPERATOR CONTROL</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;700;900&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:       #050a12;
+  --panel:    #080f1c;
+  --border:   #0d2840;
+  --accent:   #00c8ff;
+  --accent2:  #00ff9d;
+  --warn:     #ff4560;
+  --ansible:  #ee0979;
+  --ansible2: #ff6a00;
+  --muted:    #1a3a55;
+  --text:     #c8e8ff;
+  --text-dim: #4a7a9b;
+  --glow:     0 0 18px rgba(0,200,255,0.35);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Rajdhani',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+body::before{content:"";position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.18) 2px,rgba(0,0,0,0.18) 4px);pointer-events:none;z-index:9999;}
+body::after{content:"";position:fixed;inset:0;background-image:linear-gradient(rgba(0,200,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,255,0.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+
+/* ── VIEWS ── */
+.view{display:none;position:relative;z-index:10;}
+.view.active{display:flex;flex-direction:column;min-height:100vh;}
+
+/* ── LOGIN ── */
+#loginView{align-items:center;justify-content:center;min-height:100vh;}
+.login-card{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:48px 40px;width:100%;max-width:420px;box-shadow:0 0 40px rgba(0,200,255,0.1);}
+.login-card::before{content:"";display:block;width:100%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);margin-bottom:32px;}
+.login-brand{text-align:center;margin-bottom:32px;}
+.login-title{font-family:'Exo 2',sans-serif;font-size:22px;font-weight:900;letter-spacing:4px;color:var(--accent);}
+.login-sub{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-top:6px;}
+.form-group{margin-bottom:18px;}
+.form-group label{display:block;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px;}
+.form-group input,.form-group select,.form-group textarea{width:100%;background:rgba(0,200,255,0.04);border:1px solid var(--muted);border-radius:3px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:13px;padding:10px 14px;outline:none;transition:border-color 0.3s;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent);}
+.error-msg{background:rgba(255,69,96,0.1);border:1px solid var(--warn);color:var(--warn);font-family:'Share Tech Mono',monospace;font-size:11px;padding:10px;border-radius:3px;margin-bottom:18px;display:none;text-align:center;}
+
+/* ── HEADER ── */
+header{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:14px 36px;border-bottom:1px solid var(--border);background:rgba(5,10,18,0.9);backdrop-filter:blur(12px);}
+.hdr-logo{display:flex;align-items:center;gap:12px;}
+.hdr-title{font-family:'Exo 2',sans-serif;font-size:11px;font-weight:700;letter-spacing:4px;color:var(--accent);text-transform:uppercase;}
+.hdr-sub{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:2px;margin-top:2px;}
+.hdr-right{display:flex;align-items:center;gap:20px;}
+.status-pill{display:flex;align-items:center;gap:7px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--text-dim);}
+.pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--accent2);box-shadow:0 0 8px var(--accent2);animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(0.75);}}
+@keyframes rotateLogo{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.clock{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--accent);letter-spacing:2px;}
+
+/* ── SIDEBAR + LAYOUT ── */
+.app-layout{display:flex;flex:1;}
+.sidebar{width:180px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 0;}
+.sidebar-section{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--text-dim);letter-spacing:2px;padding:10px 14px 4px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 14px;color:var(--text-dim);cursor:pointer;font-size:11px;font-weight:600;letter-spacing:0.5px;transition:all 0.2s;border-left:3px solid transparent;}
+.nav-item:hover{background:rgba(0,200,255,0.05);color:var(--text);}
+.nav-item.active{background:rgba(0,200,255,0.08);color:var(--accent);border-left-color:var(--accent);}
+.nav-item.locked{cursor:not-allowed;opacity:0.35;pointer-events:none;}
+.nav-item.locked:hover{background:transparent;color:var(--text-dim);}
+.nav-lock-icon{margin-left:auto;font-size:10px;opacity:0.6;}
+.nav-icon{font-size:15px;min-width:20px;width:20px;text-align:center;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.nav-label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nav-badge{margin-left:auto;background:rgba(0,255,157,0.15);color:var(--accent2);font-family:'Share Tech Mono',monospace;font-size:8px;padding:2px 5px;border-radius:2px;}
+.main-content{flex:1;padding:28px 36px;overflow-y:auto;}
+
+/* ── SCREENS ── */
+.screen{display:none;}
+.screen.active{display:block;}
+
+/* ── BUTTONS ── */
+.btn{font-family:'Exo 2',sans-serif;font-weight:700;font-size:12px;letter-spacing:3px;text-transform:uppercase;padding:11px 28px;border:1px solid var(--border);border-radius:3px;cursor:pointer;background:var(--panel);color:var(--text);transition:all 0.2s;position:relative;overflow:hidden;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-primary{background:linear-gradient(135deg,#005522,#00cc66);border-color:#00cc66;color:#fff;box-shadow:0 0 16px rgba(0,204,102,0.3);}
+.btn-primary:hover{box-shadow:0 0 28px rgba(0,204,102,0.6);}
+.btn-deploy{background:linear-gradient(135deg,#006630,#00cc66);color:#fff;border-color:#00cc66;box-shadow:0 0 20px rgba(0,204,102,0.4);}
+.btn-deploy:hover{box-shadow:0 0 30px rgba(0,204,102,0.7);}
+.btn-destroy{background:linear-gradient(135deg,#660018,#ff1a40);color:#fff;border-color:#ff1a40;box-shadow:0 0 20px rgba(255,26,64,0.4);}
+.btn-destroy:hover{box-shadow:0 0 30px rgba(255,26,64,0.7);}
+.btn-brick{background:linear-gradient(135deg,#7a4a00,#ffaa00);color:#000;border-color:#ffaa00;}
+.btn-schema{background:linear-gradient(135deg,#4a008a,#a64dff);color:#fff;border-color:#a64dff;}
+.btn-vuln{background:linear-gradient(135deg,#660018,#ff4560);color:#fff;border-color:#ff4560;font-size:10px;padding:7px 14px;letter-spacing:1px;}
+.btn-vuln:hover{box-shadow:0 0 20px rgba(255,69,96,0.5);}
+.btn-sm{padding:7px 16px;font-size:10px;letter-spacing:2px;}
+
+/* ── CARDS / PANELS ── */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:22px 24px;position:relative;overflow:hidden;}
+.card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0.6;}
+.card.red-accent::before{background:linear-gradient(90deg,transparent,var(--warn),transparent);}
+.card.ansible-accent::before{background:linear-gradient(90deg,transparent,var(--ansible),transparent);}
+.card-label{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.card-label::after{content:"";flex:1;height:1px;background:var(--border);}
+
+/* ── PROGRESS ── */
+.progress-bar-wrap{position:relative;height:6px;background:var(--muted);border-radius:3px;overflow:hidden;margin:8px 0;}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:3px;transition:width 0.5s;box-shadow:0 0 8px var(--accent);}
+.progress-step-row{display:flex;gap:6px;margin-top:8px;}
+.progress-step{flex:1;height:26px;border:1px solid var(--border);border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;color:var(--text-dim);transition:all 0.4s;}
+.progress-step.active{background:rgba(0,200,255,0.12);border-color:var(--accent);color:var(--accent);}
+.progress-step.done{background:rgba(0,255,157,0.08);border-color:var(--accent2);color:var(--accent2);}
+
+/* ── PILLS / BADGES ── */
+.pill{padding:3px 10px;border-radius:2px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;display:inline-flex;align-items:center;gap:5px;}
+.pill-blue{background:rgba(0,200,255,0.1);border:1px solid var(--accent);color:var(--accent);}
+.pill-green{background:rgba(0,255,157,0.1);border:1px solid var(--accent2);color:var(--accent2);}
+.pill-red{background:rgba(255,69,96,0.1);border:1px solid var(--warn);color:var(--warn);}
+.pill-warn{background:rgba(255,170,0,0.1);border:1px solid #ffaa00;color:#ffaa00;}
+.pill-muted{background:rgba(74,122,155,0.15);border:1px solid var(--text-dim);color:var(--text-dim);}
+.sev-critical{background:rgba(255,0,60,0.15);border:1px solid #ff003c;color:#ff003c;padding:2px 8px;border-radius:2px;font-family:'Share Tech Mono',monospace;font-size:9px;}
+.sev-high{background:rgba(255,69,96,0.12);border:1px solid var(--warn);color:var(--warn);padding:2px 8px;border-radius:2px;font-family:'Share Tech Mono',monospace;font-size:9px;}
+.sev-medium{background:rgba(255,170,0,0.12);border:1px solid #ffaa00;color:#ffaa00;padding:2px 8px;border-radius:2px;font-family:'Share Tech Mono',monospace;font-size:9px;}
+
+/* ── TABLES ── */
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--text-dim);padding:10px 14px;border-bottom:1px solid var(--border);text-align:left;text-transform:uppercase;}
+.data-table td{font-family:'Share Tech Mono',monospace;font-size:12px;padding:12px 14px;border-bottom:1px solid rgba(13,40,64,0.5);color:var(--text);transition:background 0.2s;}
+.data-table tr:hover td{background:rgba(0,200,255,0.04);}
+.no-data{text-align:center;color:var(--text-dim);font-size:11px;letter-spacing:2px;padding:24px;}
+
+/* ── TERMINALS ── */
+.terminal{background:#020912;border:1px solid var(--border);border-radius:3px;padding:14px 16px;height:220px;overflow-y:auto;font-family:'Share Tech Mono',monospace;font-size:12px;color:#5af78e;line-height:1.6;scrollbar-width:thin;}
+.terminal.ansible-terminal{color:#ffb347;}
+.log-line.err{color:var(--warn);}
+.log-line.ok{color:var(--accent2);}
+.log-line.changed{color:#ffd700;}
+.log-line.task{color:var(--accent);}
+.log-line.play{color:var(--ansible2);font-weight:bold;}
+.log-line.recap{color:#ff6a00;}
+
+/* ── VM CARDS (config screen) ── */
+.vm-cards-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px;}
+.vm-card{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:20px;transition:border-color 0.3s;}
+.vm-card:hover{border-color:var(--accent);}
+.vm-card::before{content:"";display:block;width:100%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);margin-bottom:16px;}
+.vm-icon{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(0,200,255,0.4));}
+.vm-name{font-family:'Exo 2',sans-serif;font-weight:700;font-size:16px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;}
+.vm-desc{font-size:10px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;letter-spacing:1px;margin-top:2px;}
+.vm-input{width:70px;background:rgba(0,200,255,0.06);border:1px solid var(--muted);border-radius:3px;color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:20px;font-weight:bold;text-align:center;padding:6px;outline:none;}
+.vm-input:focus{border-color:var(--accent);}
+.vm-input::-webkit-outer-spin-button,.vm-input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.vm-input[type=number]{-moz-appearance:textfield;}
+.step-btn{width:22px;height:20px;background:var(--muted);border:1px solid var(--border);border-radius:2px;color:var(--accent);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.step-btn:hover{background:var(--accent);color:var(--bg);}
+
+/* ── SCENARIO CARDS ── */
+.scenario-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+.scenario-card{background:var(--panel);border:2px solid var(--border);border-radius:4px;padding:24px;cursor:pointer;transition:all 0.3s;text-align:center;}
+.scenario-card:hover{border-color:var(--accent);}
+.scenario-card.selected{border-color:var(--accent);background:rgba(0,200,255,0.06);box-shadow:var(--glow);}
+.scenario-icon{font-size:32px;margin-bottom:12px;}
+.scenario-name{font-family:'Exo 2',sans-serif;font-weight:700;font-size:15px;color:var(--accent);letter-spacing:1px;margin-bottom:8px;}
+.scenario-desc{font-size:12px;color:var(--text-dim);line-height:1.5;}
+
+/* ── VULN MATRIX ── */
+.vuln-machine-row{background:rgba(0,200,255,0.02);border:1px solid var(--border);border-radius:4px;padding:16px;margin-bottom:12px;}
+.vuln-machine-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.vuln-tags{display:flex;flex-wrap:wrap;gap:6px;min-height:28px;}
+.vuln-tag{display:inline-flex;align-items:center;gap:6px;background:rgba(255,69,96,0.12);border:1px solid var(--warn);color:var(--warn);font-family:'Share Tech Mono',monospace;font-size:10px;padding:3px 10px;border-radius:2px;}
+.vuln-tag-x{cursor:pointer;opacity:0.7;margin-left:4px;}
+.vuln-tag-x:hover{opacity:1;}
+
+/* ── VULN INJECTION CONSOLE ── */
+.vi-header{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:18px 36px;border-bottom:2px solid var(--warn);background:rgba(5,10,18,0.97);}
+.vi-skull{font-size:32px;animation:vi-pulse 2s ease-in-out infinite;}
+@keyframes vi-pulse{0%,100%{opacity:1;text-shadow:0 0 20px rgba(255,69,96,0.8);}50%{opacity:0.6;text-shadow:0 0 4px rgba(255,69,96,0.2);}}
+.vi-title{font-family:'Exo 2',sans-serif;font-weight:900;font-size:18px;letter-spacing:4px;color:var(--warn);text-transform:uppercase;}
+.vi-subtitle{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:3px;margin-top:4px;}
+.vi-stats{display:flex;align-items:center;gap:0;background:rgba(255,69,96,0.04);border:1px solid rgba(255,69,96,0.2);border-radius:4px;padding:8px 20px;gap:20px;}
+.vi-stat-item{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.vi-stat-item span:first-child{font-family:'Exo 2',sans-serif;font-weight:900;font-size:22px;color:var(--warn);line-height:1;}
+.vi-stat-label{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--text-dim);letter-spacing:2px;}
+.vi-stat-sep{width:1px;height:32px;background:rgba(255,69,96,0.2);}
+.vi-body{flex:1;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;}
+.vi-left-panel{overflow-y:auto;padding:20px 24px;border-right:1px solid rgba(255,69,96,0.15);display:flex;flex-direction:column;gap:12px;}
+.vi-right-panel{overflow-y:auto;padding:20px 24px;background:rgba(255,69,96,0.02);display:flex;flex-direction:column;}
+.vi-panel-label{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(255,69,96,0.15);}
+.vi-card{background:var(--panel);border:1px solid rgba(255,69,96,0.25);border-radius:6px;overflow:hidden;transition:border-color 0.3s;}
+.vi-log-empty{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:1px;text-align:center;padding:40px 20px;border:1px dashed rgba(255,69,96,0.15);border-radius:4px;}
+.vi-log-entry{display:flex;flex-direction:column;gap:6px;background:var(--panel);border:1px solid rgba(255,69,96,0.2);border-radius:4px;padding:12px 14px;margin-bottom:10px;animation:vi-log-in 0.4s ease;}
+@keyframes vi-log-in{from{opacity:0;transform:translateX(10px);}to{opacity:1;transform:translateX(0);}}
+.vi-log-entry-header{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.vi-log-machine{font-family:'Exo 2',sans-serif;font-weight:700;font-size:13px;color:var(--text);letter-spacing:1px;}
+.vi-log-time{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);}
+.vi-log-vuln{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--warn);margin-top:2px;}
+.vi-log-meta{display:flex;align-items:center;gap:8px;margin-top:4px;}
+.vi-log-cve{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:1px;}
+.vi-log-desc{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);line-height:1.5;margin-top:4px;padding-top:6px;border-top:1px solid rgba(255,69,96,0.1);}
+.vi-log-status-ok{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--accent2);background:rgba(0,255,157,0.08);border:1px solid rgba(0,255,157,0.2);padding:2px 8px;border-radius:2px;}
+.vi-log-status-fail{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--warn);background:rgba(255,69,96,0.08);border:1px solid rgba(255,69,96,0.2);padding:2px 8px;border-radius:2px;}
+.vi-summary-card{background:var(--panel);border:1px solid rgba(255,69,96,0.2);border-radius:4px;padding:10px 14px;margin-bottom:8px;}
+.vi-summary-machine{font-family:'Exo 2',sans-serif;font-weight:700;font-size:12px;color:var(--text);letter-spacing:1px;margin-bottom:6px;}
+.vi-summary-tags{display:flex;flex-wrap:wrap;gap:6px;}
+.vi-summary-tag{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:2px 8px;border-radius:2px;}
+.vi-card:hover{border-color:rgba(255,69,96,0.5);}
+.vi-card.injecting{border-color:var(--warn);box-shadow:0 0 20px rgba(255,69,96,0.15);}
+.vi-card-header{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,69,96,0.12);background:rgba(255,69,96,0.03);}
+.vi-card-icon{width:32px;height:32px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(255,69,96,0.3));}
+.vi-card-info{flex:1;}
+.vi-card-name{font-family:'Exo 2',sans-serif;font-weight:700;font-size:14px;color:var(--text);letter-spacing:1px;}
+.vi-card-ip{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);margin-top:2px;}
+.vi-card-status{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+.vi-status-dot{display:inline-flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;}
+.vi-status-dot::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent2);box-shadow:0 0 6px var(--accent2);animation:vi-blink 1.5s ease-in-out infinite;}
+@keyframes vi-blink{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.vi-card-body{padding:14px 16px;}
+.vi-select{width:100%;background:rgba(255,69,96,0.03);border:1px solid rgba(255,69,96,0.25);border-radius:3px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:11px;padding:9px 12px;outline:none;cursor:pointer;transition:border-color 0.2s;}
+.vi-select:focus{border-color:var(--warn);}
+.vi-select option{background:#080f1c;}
+.vi-sev-bar{display:flex;align-items:center;gap:8px;margin-top:8px;min-height:20px;}
+.vi-sev-label{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;padding:2px 8px;border-radius:2px;}
+.sev-critical{color:#ff2244;background:rgba(255,34,68,0.12);border:1px solid rgba(255,34,68,0.3);}
+.sev-high{color:#ff8c00;background:rgba(255,140,0,0.12);border:1px solid rgba(255,140,0,0.3);}
+.sev-medium{color:#ffd700;background:rgba(255,215,0,0.12);border:1px solid rgba(255,215,0,0.3);}
+.sev-low{color:#00c8ff;background:rgba(0,200,255,0.12);border:1px solid rgba(0,200,255,0.3);}
+.vi-desc{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);margin-top:4px;line-height:1.5;}
+.vi-launch-btn{margin-top:12px;width:100%;padding:10px;font-family:'Exo 2',sans-serif;font-weight:700;font-size:11px;letter-spacing:3px;border:1px solid rgba(255,69,96,0.4);border-radius:3px;background:rgba(255,69,96,0.08);color:var(--warn);cursor:pointer;transition:all 0.2s;text-transform:uppercase;}
+.vi-launch-btn:hover:not(:disabled){background:rgba(255,69,96,0.18);border-color:var(--warn);box-shadow:0 0 14px rgba(255,69,96,0.2);}
+.vi-launch-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.vi-launch-btn.launching{background:rgba(255,69,96,0.15);animation:vi-btn-pulse 0.8s ease-in-out infinite;}
+.vi-patch-btn{margin-top:6px;width:100%;padding:10px;font-family:'Exo 2',sans-serif;font-weight:700;font-size:11px;letter-spacing:3px;border:1px solid rgba(63,185,80,0.4);border-radius:3px;background:rgba(63,185,80,0.08);color:#3fb950;cursor:pointer;transition:all 0.2s;text-transform:uppercase;}
+.vi-patch-btn:hover:not(:disabled){background:rgba(63,185,80,0.18);border-color:#3fb950;box-shadow:0 0 14px rgba(63,185,80,0.2);}
+.vi-patch-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.vi-patch-btn.patching{background:rgba(63,185,80,0.15);animation:vi-btn-pulse 0.8s ease-in-out infinite;}
+@keyframes vi-btn-pulse{0%,100%{box-shadow:0 0 8px rgba(255,69,96,0.3);}50%{box-shadow:0 0 20px rgba(255,69,96,0.6);}}
+.vi-terminal{background:#020912;border:1px solid rgba(255,69,96,0.15);border-radius:3px;padding:10px 12px;max-height:140px;overflow-y:auto;font-family:'Share Tech Mono',monospace;font-size:10px;line-height:1.6;margin-top:10px;display:none;}
+.vi-terminal.active{display:block;}
+.vi-terminal-line{padding:1px 0;}
+.vi-terminal-line.ok{color:#00ff9d;}
+.vi-terminal-line.err{color:var(--warn);}
+.vi-terminal-line.info{color:#4a7a9b;}
+.vi-terminal-line.done-ok{color:#00ff9d;font-weight:bold;}
+.vi-terminal-line.done-fail{color:var(--warn);font-weight:bold;}
+.vi-injected-list{margin-top:12px;display:flex;flex-direction:column;gap:6px;}
+.vi-injected-item{display:flex;align-items:center;gap:8px;background:rgba(255,69,96,0.05);border:1px solid rgba(255,69,96,0.2);border-radius:3px;padding:6px 10px;}
+.vi-injected-item .vi-sev-label{flex-shrink:0;}
+.vi-injected-name{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text);flex:1;}
+.vi-injected-time{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);}
+.vi-injected-header{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--text-dim);margin-top:12px;margin-bottom:4px;border-top:1px solid rgba(255,69,96,0.1);padding-top:10px;}
+
+/* ── ACTIVE RANGE LAYOUT ── */
+.range-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.range-layout .full-width{grid-column:1/-1;}
+
+/* ── PIPELINE BANNER ── */
+#pipelineBanner{position:relative;z-index:10;display:flex;align-items:center;justify-content:center;gap:0;background:rgba(5,10,18,0.85);border-bottom:1px solid var(--border);padding:10px 36px;}
+.pipe-step{display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--text-dim);padding:6px 20px;border:1px solid transparent;border-radius:3px;transition:all 0.4s;}
+.pipe-step.active{color:var(--accent);border-color:var(--accent);background:rgba(0,200,255,0.06);}
+.pipe-step.done{color:var(--accent2);border-color:var(--accent2);background:rgba(0,255,157,0.06);}
+.pipe-step.ansible-active{color:var(--ansible2);border-color:var(--ansible2);background:rgba(238,9,121,0.06);}
+.pipe-arrow{color:var(--text-dim);font-size:14px;padding:0 8px;font-family:'Share Tech Mono',monospace;}
+
+/* ── RADIAL ── */
+.radial{position:relative;width:120px;height:120px;}
+.radial svg{width:120px;height:120px;transform:rotate(-90deg);}
+.radial-bg{fill:none;stroke:var(--muted);stroke-width:8;}
+.radial-fill{fill:none;stroke:var(--accent);stroke-width:8;stroke-linecap:round;stroke-dasharray:326.726;stroke-dashoffset:326.726;transition:stroke-dashoffset 0.6s,stroke 0.4s;filter:drop-shadow(0 0 6px var(--accent));}
+.radial-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.radial-pct{font-family:'Share Tech Mono',monospace;font-size:24px;font-weight:bold;color:var(--accent);line-height:1;}
+.radial-sub{font-size:8px;letter-spacing:2px;color:var(--text-dim);font-family:'Share Tech Mono',monospace;}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(5,10,18,0.85);backdrop-filter:blur(8px);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.25s;}
+.modal-overlay.show{opacity:1;pointer-events:all;}
+.modal{background:var(--panel);border:1px solid var(--warn);border-radius:4px;padding:32px 40px;max-width:500px;width:90%;position:relative;box-shadow:0 0 40px rgba(255,69,96,0.25);}
+.modal::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--warn),transparent);}
+.modal-title{font-family:'Exo 2',sans-serif;font-size:18px;font-weight:900;color:var(--warn);letter-spacing:3px;margin-bottom:12px;}
+.modal-body{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:24px;}
+.modal-btns{display:flex;gap:12px;}
+.modal-btn{flex:1;padding:11px;font-family:'Exo 2',sans-serif;font-weight:700;font-size:11px;letter-spacing:3px;text-transform:uppercase;border:none;border-radius:3px;cursor:pointer;transition:0.2s;}
+.modal-cancel{background:var(--muted);color:var(--text);}
+.modal-cancel:hover{background:var(--border);}
+.modal-confirm{background:var(--warn);color:#fff;}
+.modal-confirm:hover{background:#ff1a40;}
+
+/* ── SCHEMA PAGE ── */
+#schemaPage{position:fixed;inset:0;z-index:2000;background:var(--bg);display:none;flex-direction:column;overflow-y:auto;}
+#schemaPage.show{display:flex;}
+#vulnPage{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:2000;background:var(--bg);display:none;flex-direction:column;overflow:hidden;}
+#vulnPage.show{display:flex;}
+.schema-header{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:16px 36px;border-bottom:1px solid var(--border);background:rgba(5,10,18,0.95);}
+.schema-title{font-family:'Exo 2',sans-serif;font-size:16px;font-weight:900;letter-spacing:4px;color:var(--accent2);text-transform:uppercase;}
+.schema-body{position:relative;z-index:10;padding:30px 36px;flex:1;}
+.schema-zones{display:grid;grid-template-columns:1fr 240px 1fr;gap:0;align-items:start;}
+.zone-box{border:1px solid var(--border);border-radius:6px;background:var(--panel);padding:20px;transition:all 0.3s;}
+.zone-box.red-zone{border-color:rgba(255,69,96,0.5);}
+.zone-box.blue-zone{border-color:rgba(0,200,255,0.5);}
+.zone-box.red-zone:hover{border-color:var(--warn);background:rgba(255,69,96,0.06);box-shadow:0 0 24px rgba(255,69,96,0.35);}
+.zone-box.blue-zone:hover{border-color:var(--accent);background:rgba(0,200,255,0.06);box-shadow:0 0 24px rgba(0,200,255,0.35);}
+.zone-label{font-family:'Exo 2',sans-serif;font-weight:900;font-size:14px;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px;}
+.red-zone .zone-label{color:var(--warn);}
+.blue-zone .zone-label{color:var(--accent);}
+.zone-sub{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:1px;margin-bottom:16px;}
+.zone-section-label{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:2px;margin:14px 0 8px;text-transform:uppercase;}
+.node-card{display:flex;align-items:center;gap:12px;border:1px solid var(--muted);border-radius:4px;background:rgba(0,200,255,0.03);padding:10px 14px;margin-bottom:8px;}
+.node-card.node-red{background:rgba(255,69,96,0.04);}
+.node-icon{width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(0,200,255,0.4));}
+.node-info{flex:1;}
+.node-name{font-family:'Exo 2',sans-serif;font-weight:700;font-size:13px;color:var(--text);}
+.node-ip{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--accent);}
+.node-state{font-family:'Share Tech Mono',monospace;font-size:9px;padding:3px 9px;border-radius:2px;letter-spacing:1px;}
+.ns-running{background:rgba(0,255,157,0.1);border:1px solid var(--accent2);color:var(--accent2);}
+.ns-stopped{background:rgba(255,69,96,0.1);border:1px solid var(--warn);color:var(--warn);}
+.firewall-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:10px;padding-top:80px;position:relative;}
+.firewall-col::before{content:"";position:absolute;top:130px;left:0;width:50%;border-top:2px dashed var(--warn);z-index:1;}
+.firewall-col::after{content:"";position:absolute;top:130px;right:0;width:50%;border-top:2px dashed var(--accent);z-index:1;}
+.vlan-tag{position:absolute;top:114px;font-family:'Share Tech Mono',monospace;font-size:10px;font-weight:bold;letter-spacing:1px;background:var(--bg);padding:0 6px;z-index:2;}
+.vlan-tag.vlan-left{left:10px;color:var(--warn);}
+.vlan-tag.vlan-right{right:10px;color:var(--accent);}
+.firewall-icon{width:100px;height:90px;border:2px solid #fff;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#0a3d62;position:relative;z-index:5;}
+.firewall-icon img{max-width:90px;max-height:70px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(255,255,255,0.9)) drop-shadow(0 0 16px rgba(255,255,255,0.6));}
+.firewall-icon::after{content:"▪ ▪ ▪ ▪ ▪";position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:7px;color:rgba(255,255,255,0.7);letter-spacing:3px;}
+.firewall-label{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:1px;text-align:center;z-index:3;}
+
+/* ── STATUS BADGES ── */
+.status-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:2px;font-size:10px;letter-spacing:1px;font-weight:600;}
+.badge-running{background:rgba(0,255,157,0.10);border:1px solid var(--accent2);color:var(--accent2);}
+.badge-stopped{background:rgba(255,69,96,0.10);border:1px solid var(--warn);color:var(--warn);}
+.badge-other{background:rgba(74,122,155,0.15);border:1px solid var(--text-dim);color:var(--text-dim);}
+.ip-booting{color:#ffc800;font-style:italic;}
+.ip-stopped{color:var(--text-dim);font-style:italic;}
+
+/* ── ANS COUNTS ── */
+.ans-counts{display:flex;gap:8px;margin-top:10px;}
+.ans-count-badge{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;padding:4px 10px;border-radius:2px;}
+.badge-ok{background:rgba(0,255,157,0.1);border:1px solid var(--accent2);color:var(--accent2);}
+.badge-changed{background:rgba(255,215,0,0.1);border:1px solid #ffd700;color:#ffd700;}
+.badge-failed{background:rgba(255,69,96,0.1);border:1px solid var(--warn);color:var(--warn);}
+
+/* ── MISC ── */
+.corner-tl,.corner-br{position:absolute;width:12px;height:12px;border-color:var(--accent);border-style:solid;opacity:0.4;}
+.corner-tl{top:8px;left:8px;border-width:1px 0 0 1px;}
+.corner-br{bottom:8px;right:8px;border-width:0 1px 1px 0;}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.section-title{font-family:'Exo 2',sans-serif;font-size:20px;font-weight:700;color:var(--text);}
+.section-subtitle{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);margin-top:4px;}
+.summary-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.summary-row:last-child{border-bottom:none;}
+.summary-label{color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:11px;}
+.summary-value{color:var(--text);font-weight:600;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.inject-terminal{background:#020912;border:1px solid var(--border);border-radius:3px;padding:12px;height:160px;overflow-y:auto;font-family:'Share Tech Mono',monospace;font-size:11px;color:#ff9a9a;line-height:1.5;margin-top:12px;display:none;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ LOGIN VIEW ═══════════════════ -->
+<div id="loginView" class="view active" style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
+  <div class="login-card">
+    <div class="login-brand">
+      <svg viewBox="0 0 42 42" width="48" height="48" style="margin:0 auto 16px;display:block;">
+        <polygon points="21,2 38,11 38,31 21,40 4,31 4,11" stroke="#00c8ff" stroke-width="1.5" fill="rgba(0,200,255,0.06)"/>
+        <circle cx="21" cy="21" r="4" fill="#00c8ff" opacity="0.8"/>
+      </svg>
+      <div class="login-title">CYBERRANGE</div>
+      <div class="login-sub">OPERATOR CONTROL CENTER</div>
+    </div>
+    <div id="loginError" class="error-msg">Invalid operator credentials. Access denied.</div>
+    <div class="form-group"><label>OPERATOR ID</label><input type="text" id="loginUser" placeholder="admin" /></div>
+    <div class="form-group"><label>ACCESS CODE</label><input type="password" id="loginPass" placeholder="••••••••••" /></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="handleLogin()">⬡ AUTHENTICATE &amp; ENTER</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ MAIN APP VIEW ═══════════════════ -->
+<div id="appView" class="view" style="flex-direction:column;">
+
+  <!-- HEADER -->
+  <header>
+    <div class="hdr-logo">
+      <svg viewBox="0 0 42 42" width="38" height="38">
+        <polygon points="21,2 38,11 38,31 21,40 4,31 4,11" stroke="#00c8ff" stroke-width="1.5" fill="rgba(0,200,255,0.06)"/>
+        <polygon points="21,8 34,15 34,27 21,34 8,27 8,15" stroke="#00c8ff" stroke-width="0.5" fill="none" opacity="0.4"/>
+        <circle cx="21" cy="21" r="4" fill="#00c8ff" opacity="0.8"/>
+      </svg>
+      <div>
+        <div class="hdr-title">CYBERRANGE</div>
+        <div class="hdr-sub">INFRA CONTROL CENTER // v4.0.0</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="status-pill"><div class="pulse-dot"></div>PROXMOX ONLINE</div>
+      <div class="status-pill" style="color:var(--accent2)"><div class="pulse-dot" style="background:var(--accent2);box-shadow:0 0 8px var(--accent2)"></div>TERRAFORM READY</div>
+      <div class="status-pill" id="ansibleStatusPill"><div class="pulse-dot" id="ansibleDot" style="background:var(--text-dim);box-shadow:none;animation:none"></div>ANSIBLE IDLE</div>
+      <div class="clock" id="clock">--:--:--</div>
+      <button class="btn btn-sm" onclick="handleLogout()">LOGOUT</button>
+    </div>
+  </header>
+
+  <!-- PIPELINE BANNER (only shown during deploy) -->
+  <div id="pipelineBanner" style="display:none;">
+    <div class="pipe-step" id="ps-tf">⬡ TERRAFORM</div>
+    <div class="pipe-arrow">──▶</div>
+    <div class="pipe-step" id="ps-inv">⬡ INVENTORY GEN</div>
+    <div class="pipe-arrow">──▶</div>
+    <div class="pipe-step" id="ps-ans">⬡ ANSIBLE CONFIG</div>
+    <div class="pipe-arrow">──▶</div>
+    <div class="pipe-step" id="ps-done">⬡ COMPLETE</div>
+  </div>
+
+  <!-- MAIN LAYOUT -->
+  <div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-section">Overview</div>
+      <div class="nav-item active" id="nav-dashboard" onclick="navigate('dashboard')">
+        <span class="nav-icon"><img src="data:image/png;base64,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" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 0 3px rgba(0,180,255,0.6));"></span><span class="nav-label">Dashboard</span>
+      </div>
+
+      <div class="sidebar-section">Exercise Setup</div>
+      <div class="nav-item" data-screen="basics" id="nav-basics">
+        <span class="nav-icon"><img src="data:image/png;base64,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" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 0 3px rgba(0,180,255,0.6));"></span><span class="nav-label">Basics</span><span class="nav-lock-icon" id="lock-basics" style="display:none;">🔒</span>
+      </div>
+      <div class="nav-item" data-screen="scenario" id="nav-scenario">
+        <span class="nav-icon"><img src="data:image/png;base64,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" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 0 3px rgba(0,180,255,0.6));"></span><span class="nav-label">Scenario &amp; Briefing</span><span class="nav-lock-icon" id="lock-scenario" style="display:none;">🔒</span>
+      </div>
+      <div class="nav-item" data-screen="config" id="nav-config">
+        <span class="nav-icon"><img src="data:image/png;base64,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" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 0 3px rgba(0,180,255,0.6));"></span><span class="nav-label">Config</span><span class="nav-lock-icon" id="lock-config" style="display:none;">🔒</span>
+      </div>
+      <div class="nav-item" data-screen="review" id="nav-review">
+        <span class="nav-icon"><img src="data:image/png;base64,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" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 0 3px rgba(0,180,255,0.6));"></span><span class="nav-label">Review</span><span class="nav-lock-icon" id="lock-review" style="display:none;">🔒</span>
+      </div>
+
+      <div class="sidebar-section">Operations</div>
+      <div class="nav-item" id="nav-activeRange" onclick="navigate('activeRange')">
+        <span class="nav-icon"><img src="data:image/png;base64,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" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 0 3px rgba(0,180,255,0.6));"></span><span class="nav-label">Active Range</span><span class="nav-badge" id="rangeBadge" style="display:none;">LIVE</span>
+      </div>
+      <div class="nav-item" onclick="showSchema()">
+        <span class="nav-icon"><img src="data:image/png;base64,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" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 0 3px rgba(0,180,255,0.6));"></span><span class="nav-label">Network Schema</span>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+      <!-- ══════ DASHBOARD ══════ -->
+      <div class="screen active" id="screen-dashboard">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Operator Dashboard</div>
+            <div class="section-subtitle">Platform overview and range status</div>
+          </div>
+          <button class="btn btn-primary" onclick="startNewExercise()">+ NEW EXERCISE</button>
+        </div>
+
+        <div class="grid-3" style="margin-bottom:24px;">
+          <div class="card">
+            <div class="card-label">Range State</div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div class="pulse-dot" id="dashStateDot" style="background:var(--text-dim);box-shadow:none;animation:none;"></div>
+              <span style="font-family:'Share Tech Mono',monospace;font-size:16px;" id="dashStateText">IDLE</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-label">Active VMs</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:28px;color:var(--accent2);" id="dashVmCount">0</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Current Exercise</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:13px;" id="dashExName">—</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+          <div class="card">
+            <div class="card-label">Quick Actions</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <button class="btn btn-schema" onclick="showSchema()" style="text-align:center;width:100%;">⬢ VIEW NETWORK SCHEMA</button>
+              <button class="btn btn-destroy" id="dashDestroyBtn" onclick="openDestroyModal()" style="display:none;">⬡ Destroy Active Range</button>
+              <div id="dashVulnInjectBtnWrapper" style="display:none;">
+                <button class="btn" onclick="openVulnInjectionPanel();"
+                  style="width:100%;font-size:12px;padding:10px 28px;letter-spacing:2px;
+                         background:linear-gradient(135deg,#ff2244,#8b0000);
+                         border:1px solid #ff2244;color:#fff;
+                         box-shadow:0 0 14px rgba(255,34,68,0.4);">
+                  ☠ INJECT VULNERABILITIES
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="card" id="dashExerciseCard" style="display:none;">
+            <div class="card-label">Exercise Details</div>
+            <div id="dashExerciseDetails"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Active Nodes</div>
+          <table class="data-table">
+            <thead><tr><th>Hostname</th><th>IP</th><th>State</th></tr></thead>
+            <tbody id="dashVmTable"><tr><td colspan="3" class="no-data">NO ACTIVE NODES</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══════ BASICS ══════ -->
+      <div class="screen" id="screen-basics">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Exercise Basics</div>
+            <div class="section-subtitle">Step 1 of 5 — Define exercise metadata</div>
+          </div>
+        </div>
+        <div class="progress-step-row" style="margin-bottom:24px;">
+          <div class="progress-step active">1. BASICS</div>
+          <div class="progress-step">2. SCENARIO &amp; BRIEFING</div>
+          <div class="progress-step">3. CONFIG</div>
+          <div class="progress-step">4. REVIEW</div>
+        </div>
+        <div class="card" style="max-width:580px;">
+          <div class="form-group"><label>Exercise Name</label><input type="text" id="exName" placeholder="e.g., Defensive Operations Drill 01"/></div>
+          <div class="form-group"><label>Course / Department</label><input type="text" id="exCourse" placeholder="e.g., CS-420 Cybersecurity Capstone"/></div>
+          <div class="form-group"><label>Duration</label>
+            <select id="exDuration">
+              <option value="1h">1 Hour</option>
+              <option value="2h">2 Hours</option>
+              <option value="4h" selected>4 Hours</option>
+              <option value="8h">8 Hours</option>
+              <option value="open">Open Ended</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:24px;padding-top:24px;border-top:1px solid var(--border);">
+          <button class="btn" onclick="navigate('dashboard')">← Cancel</button>
+          <button class="btn btn-primary" onclick="saveBasics()">Next: Scenario →</button>
+        </div>
+      </div>
+
+      <!-- ══════ SCENARIO ══════ -->
+      <div class="screen" id="screen-scenario">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Scenario &amp; Briefing</div>
+            <div class="section-subtitle">Step 2 of 4 — Select scenario and review briefing before proceeding</div>
+          </div>
+        </div>
+        <div class="progress-step-row" style="margin-bottom:24px;">
+          <div class="progress-step done">1. BASICS</div>
+          <div class="progress-step active">2. SCENARIO &amp; BRIEFING</div>
+          <div class="progress-step">3. CONFIG</div>
+          <div class="progress-step">4. REVIEW</div>
+        </div>
+
+        <!-- Scenario cards -->
+        <div class="scenario-grid" style="margin-bottom:20px;">
+          <div class="scenario-card selected" data-scenario="s1" onclick="selectScenario(this)">
+            <div class="scenario-icon">🛡️</div>
+            <div class="scenario-name">Blue Teaming</div>
+            <div class="scenario-desc">Defender drill. Blue team defends against injected vulnerabilities. Kali automated attacker included.</div>
+          </div>
+          <div class="scenario-card" data-scenario="s2" onclick="selectScenario(this)">
+            <div class="scenario-icon">⚔️</div>
+            <div class="scenario-name">Red Teaming</div>
+            <div class="scenario-desc">Offensive operations. Up to 6 red teamers attack shared infrastructure with custom Kali nodes.</div>
+          </div>
+          <div class="scenario-card" data-scenario="s3" onclick="selectScenario(this)">
+            <div class="scenario-icon">🔥</div>
+            <div class="scenario-name">Red vs. Blue</div>
+            <div class="scenario-desc">Live fire exercise. Competitive environment — red team attacks, blue team defends in real-time.</div>
+          </div>
+        </div>
+
+        <!-- ══ SCENARIO 2 / 3 SUB-OPTIONS ══ shown immediately below scenario cards -->
+        <div id="s2-options" style="display:none;margin-bottom:20px;">
+          <div class="card" style="border-color:var(--warn);border-left:3px solid var(--warn);">
+            <div class="card-label" id="s2-options-title" style="color:var(--warn);margin-bottom:16px;">⚔ SCENARIO CONFIGURATION</div>
+
+            <!-- Vuln Type Selection -->
+            <div style="margin-bottom:20px;">
+              <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;margin-bottom:12px;">SELECT VULNERABILITY TYPE</div>
+              <div style="display:flex;gap:12px;">
+                <button id="btn-sysvuln" onclick="selectS2Type('system')"
+                  style="flex:1;padding:14px;background:var(--panel);border:2px solid var(--border);border-radius:4px;
+                         font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text);letter-spacing:1px;
+                         cursor:pointer;transition:all 0.2s;text-align:center;">
+                  🖥 SYSTEM VULNERABILITIES<br>
+                  <span style="font-size:10px;color:var(--text-dim);">FTP + clients — network &amp; OS exploits</span>
+                </button>
+                <button id="btn-webvuln" onclick="selectS2Type('web')"
+                  style="flex:1;padding:14px;background:var(--panel);border:2px solid var(--border);border-radius:4px;
+                         font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text);letter-spacing:1px;
+                         cursor:pointer;transition:all 0.2s;text-align:center;">
+                  🌐 WEB VULNERABILITIES<br>
+                  <span id="btn-webvuln-desc" style="font-size:10px;color:var(--text-dim);">Web + DB + clients — OWASP attack surface</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Configuration preview -->
+            <div id="s2-config-summary" style="display:none;margin-top:16px;padding:12px;
+              background:rgba(0,200,255,0.04);border:1px solid var(--border);border-radius:4px;">
+              <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-bottom:8px;">⬡ CONFIGURATION PREVIEW</div>
+              <div id="s2-summary-text" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--accent);line-height:1.8;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Briefing panel — populated on scenario select -->
+        <div id="inlineBriefingPanel" style="display:none;margin-bottom:20px;">
+          <div class="card" style="border-color:var(--primary);margin-bottom:16px;">
+            <div class="card-label" id="inlineBriefingTitle" style="color:var(--primary);font-size:13px;">⬡ SCENARIO BRIEFING</div>
+            <div id="inlineBriefingStory" style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text);line-height:1.8;white-space:pre-wrap;"></div>
+          </div>
+          <div class="grid-2">
+            <div class="card">
+              <div class="card-label">🎯 Objectives</div>
+              <div id="inlineBriefingObjectives" style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text);line-height:1.8;white-space:pre-wrap;"></div>
+            </div>
+            <div class="card red-accent">
+              <div class="card-label">⚠ Rules of Engagement</div>
+              <div id="inlineBriefingRules" style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text);line-height:1.8;white-space:pre-wrap;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:24px;padding-top:24px;border-top:1px solid var(--border);">
+          <button class="btn" onclick="navigate('basics')">← Back</button>
+          <button class="btn btn-primary" onclick="saveScenario()">Next: Configuration →</button>
+        </div>
+      </div>
+
+      <!-- ══════ CONFIG      <!-- ══════ CONFIG ══════ -->
+      <div class="screen" id="screen-config">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Infrastructure Configuration</div>
+            <div class="section-subtitle">Step 4 of 5 — Select VM counts for Proxmox provisioning</div>
+          </div>
+          <button class="btn btn-brick" onclick="brickFill()">⬢ BRICK</button>
+        </div>
+        <div class="progress-step-row" style="margin-bottom:24px;">
+          <div class="progress-step done">1. BASICS</div>
+          <div class="progress-step done">2. SCENARIO &amp; BRIEFING</div>
+          <div class="progress-step active">3. CONFIG</div>
+          <div class="progress-step">4. REVIEW</div>
+        </div>
+        <div id="configError" class="error-msg" style="max-width:600px;"></div>
+
+        <!-- Server VMs -->
+        <div class="card" style="margin-bottom:20px;border-left:3px solid var(--accent);">
+          <div class="card-label">Blue Team — Server Infrastructure</div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;">
+            <div style="text-align:center;">
+              <img class="vm-icon" src="/static/Wazuh-orig.png" alt="Wazuh" style="width:80px;height:80px;"/>
+              <div class="vm-name" style="font-size:12px;margin:6px 0 4px;">WAZUH</div>
+              <div class="vm-desc">UBUNTU</div>
+              <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-top:10px;">
+                <input class="vm-input" type="number" id="vm-wazuh" value="0" min="0" max="9"/>
+                <div style="display:flex;flex-direction:column;gap:3px;">
+                  <button class="step-btn" onclick="step('vm-wazuh',1)">▲</button>
+                  <button class="step-btn" onclick="step('vm-wazuh',-1)">▼</button>
+                </div>
+              </div>
+            </div>
+            <div style="text-align:center;">
+              <img class="vm-icon" src="/static/apache.png" alt="Web" style="width:80px;height:80px;"/>
+              <div class="vm-name" style="font-size:12px;margin:6px 0 4px;">WEB</div>
+              <div class="vm-desc">APACHE</div>
+              <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-top:10px;">
+                <input class="vm-input" type="number" id="vm-web" value="0" min="0" max="9"/>
+                <div style="display:flex;flex-direction:column;gap:3px;">
+                  <button class="step-btn" onclick="step('vm-web',1)">▲</button>
+                  <button class="step-btn" onclick="step('vm-web',-1)">▼</button>
+                </div>
+              </div>
+            </div>
+            <div style="text-align:center;">
+              <img class="vm-icon" src="/static/mariadb.png" alt="DB" style="width:80px;height:80px;"/>
+              <div class="vm-name" style="font-size:12px;margin:6px 0 4px;">DATABASE</div>
+              <div class="vm-desc">MARIADB</div>
+              <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-top:10px;">
+                <input class="vm-input" type="number" id="vm-db" value="0" min="0" max="9"/>
+                <div style="display:flex;flex-direction:column;gap:3px;">
+                  <button class="step-btn" onclick="step('vm-db',1)">▲</button>
+                  <button class="step-btn" onclick="step('vm-db',-1)">▼</button>
+                </div>
+              </div>
+            </div>
+            <div style="text-align:center;">
+              <img class="vm-icon" src="/static/ftp.png" alt="FTP" style="width:80px;height:80px;"/>
+              <div class="vm-name" style="font-size:12px;margin:6px 0 4px;">FTP</div>
+              <div class="vm-desc">VSFTPD</div>
+              <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-top:10px;">
+                <input class="vm-input" type="number" id="vm-ftp" value="0" min="0" max="9"/>
+                <div style="display:flex;flex-direction:column;gap:3px;">
+                  <button class="step-btn" onclick="step('vm-ftp',1)">▲</button>
+                  <button class="step-btn" onclick="step('vm-ftp',-1)">▼</button>
+                </div>
+              </div>
+            </div>
+            <div style="text-align:center;opacity:0.8;">
+              <img class="vm-icon" src="/static/windows-10.png" alt="ADDC" style="width:80px;height:80px;"/>
+              <div class="vm-name" style="font-size:12px;margin:6px 0 4px;">ADDC</div>
+              <div class="vm-desc">CYBERSTRIKE.MIL</div>
+              <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-top:10px;">
+                <input class="vm-input" type="number" id="vm-addc" value="1" min="1" max="1" readonly
+                  style="cursor:not-allowed;opacity:0.7;"/>
+                <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:1px;">FIXED</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Client VMs -->
+        <div class="card" style="margin-bottom:20px;border-left:3px solid var(--accent2);">
+          <div class="card-label">Blue Team — Client Endpoints</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div style="display:flex;align-items:center;gap:16px;">
+              <img class="vm-icon" src="/static/windows-10.png" alt="Windows"/>
+              <div>
+                <div class="vm-name">Windows</div>
+                <div class="vm-desc">WINDOWS 10 // VLAN-20</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+                  <input class="vm-input" type="number" id="vm-win10" value="0" min="0" max="20"/>
+                  <div style="display:flex;flex-direction:column;gap:3px;">
+                    <button class="step-btn" onclick="step('vm-win10',1)">▲</button>
+                    <button class="step-btn" onclick="step('vm-win10',-1)">▼</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;">
+              <img class="vm-icon" src="/static/linux.png" alt="Linux"/>
+              <div>
+                <div class="vm-name">Linux</div>
+                <div class="vm-desc">UBUNTU // VLAN-20</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+                  <input class="vm-input" type="number" id="vm-linux" value="0" min="0" max="20"/>
+                  <div style="display:flex;flex-direction:column;gap:3px;">
+                    <button class="step-btn" onclick="step('vm-linux',1)">▲</button>
+                    <button class="step-btn" onclick="step('vm-linux',-1)">▼</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Red Team VMs -->
+        <div class="card" style="margin-bottom:20px;border-left:3px solid var(--warn);">
+          <div class="card-label">Red Team — Attack Nodes</div>
+          <div style="display:flex;align-items:center;gap:16px;">
+            <img class="vm-icon" src="/static/kali.png" alt="Kali"/>
+            <div>
+              <div class="vm-name" style="color:var(--warn)">Kali Linux</div>
+              <div class="vm-desc">KALI // VLAN-30</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+                <input class="vm-input" type="number" id="vm-kali" value="0" min="0" max="6" style="color:var(--warn);"/>
+                <div style="display:flex;flex-direction:column;gap:3px;">
+                  <button class="step-btn" onclick="step('vm-kali',1)" style="color:var(--warn);">▲</button>
+                  <button class="step-btn" onclick="step('vm-kali',-1)" style="color:var(--warn);">▼</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:24px;padding-top:24px;border-top:1px solid var(--border);">
+          <button class="btn" onclick="navigate('scenario')">← Back</button>
+          <button class="btn btn-primary" onclick="saveConfig()">Next: Review →</button>
+        </div>
+      </div>
+
+      <!-- ══════ REVIEW ══════ -->
+      <div class="screen" id="screen-review">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Review &amp; Deploy</div>
+            <div class="section-subtitle">Step 4 of 4 — Verify configuration before launch</div>
+          </div>
+        </div>
+        <div class="progress-step-row" style="margin-bottom:24px;">
+          <div class="progress-step done">1. BASICS</div>
+          <div class="progress-step done">2. SCENARIO &amp; BRIEFING</div>
+          <div class="progress-step done">3. CONFIG</div>
+          <div class="progress-step active">4. REVIEW</div>
+        </div>
+        <div class="grid-2" style="margin-bottom:20px;">
+          <div class="card">
+            <div class="card-label">Exercise Details</div>
+            <div id="reviewDetails"></div>
+          </div>
+          <div class="card">
+            <div class="card-label">Infrastructure Totals</div>
+            <div id="reviewInfra"></div>
+          </div>
+        </div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:24px;padding-top:24px;border-top:1px solid var(--border);">
+          <button class="btn" onclick="navigate('config')">← Back</button>
+          <button class="btn btn-deploy" style="font-size:14px;padding:14px 36px;" onclick="launchExercise()">⬡ DEPLOY INFRASTRUCTURE</button>
+        </div>
+      </div>
+
+      <!-- ══════ ACTIVE RANGE ══════ -->
+      <div class="screen" id="screen-activeRange">
+        <div class="section-header">
+          <div>
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px;">
+              <div class="pulse-dot"></div>
+              <div class="section-title" id="rangeExName">Active Exercise</div>
+            </div>
+            <div class="section-subtitle" id="rangeExInfo"></div>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-schema" onclick="showSchema()">⬢ SCHEMA</button>
+            <button class="btn btn-deploy" id="reDeployBtn" onclick="reDeployExercise()" style="display:none;">⬡ RE-DEPLOY</button>
+            <button class="btn btn-destroy" onclick="openDestroyModal()">■ CULMINATE</button>
+          </div>
+        </div>
+
+        <!-- Pipeline banner visible here too -->
+        <div style="margin-bottom:20px;" id="inlineProgress">
+          <div class="card">
+            <div class="card-label">Deployment Pipeline</div>
+            <div style="display:flex;gap:16px;align-items:center;">
+              <div class="radial">
+                <svg viewBox="0 0 120 120"><circle class="radial-bg" cx="60" cy="60" r="52"/><circle class="radial-fill" cx="60" cy="60" r="52" id="radialFill"/></svg>
+                <div class="radial-text"><div class="radial-pct" id="radialPct">0%</div><div class="radial-sub" id="radialSub">PROGRESS</div></div>
+              </div>
+              <div style="flex:1;">
+                <div style="display:flex;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);margin-bottom:6px;">
+                  <span id="barLabel">TERRAFORM PIPELINE</span><span id="barPct">0%</span>
+                </div>
+                <div class="progress-bar-wrap"><div class="progress-bar-fill" id="barFill" style="width:0%"></div></div>
+                <div class="progress-step-row" style="margin-top:8px;">
+                  <div class="progress-step" id="ph-init">INIT</div>
+                  <div class="progress-step" id="ph-plan">PLAN</div>
+                  <div class="progress-step" id="ph-apply">APPLY</div>
+                  <div class="progress-step" id="ph-inv">INV GEN</div>
+                  <div class="progress-step" id="ph-ansible">ANSIBLE</div>
+                  <div class="progress-step" id="ph-done">DONE</div>
+                </div>
+                <div class="ans-counts" id="ansCounts" style="display:none;">
+                  <span class="ans-count-badge badge-ok" id="cntOk">OK: 0</span>
+                  <span class="ans-count-badge badge-changed" id="cntChanged">CHANGED: 0</span>
+                  <span class="ans-count-badge badge-failed" id="cntFailed">FAILED: 0</span>
+                </div>
+                <div style="margin-top:6px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text);" id="statusMsg">IDLE — AWAITING COMMAND</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dual terminals -->
+        <div class="grid-2" style="margin-bottom:20px;">
+          <div class="card">
+            <div class="card-label">
+              <img id="tfLogo" src="/static/terraform.png" style="width:24px;height:24px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(0,200,255,0.5));" alt=""/>
+              TERRAFORM OUTPUT
+            </div>
+            <div class="terminal" id="tfTerminal"></div>
+          </div>
+          <div class="card ansible-accent">
+            <div class="card-label">
+              <img id="ansLogo" src="/static/ansible.png" style="width:24px;height:24px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(238,9,121,0.5));" alt=""/>
+              ANSIBLE OUTPUT
+            </div>
+            <div class="terminal ansible-terminal" id="ansTerminal">
+              <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-dim);font-size:11px;letter-spacing:2px;flex-direction:column;gap:10px;">
+                <span>AWAITING TERRAFORM COMPLETION</span>
+                <span style="color:var(--ansible2);letter-spacing:4px;">· · ·</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active nodes table -->
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-label">Active Nodes — Live Feed</div>
+          <table class="data-table">
+            <thead><tr><th>Hostname</th><th>IP Address</th><th>State</th></tr></thead>
+            <tbody id="vmTableBody"><tr><td colspan="3" class="no-data">NO ACTIVE NODES — DEPLOY TO BEGIN</td></tr></tbody>
+          </table>
+        </div>
+
+        <!-- Vulnerability injection panel (shown after Ansible completes) -->
+        <!-- Vuln injection button — shown after Ansible success or when VMs already running -->
+        <!-- Button stays visible — clicking opens a full-screen overlay page -->
+        <div id="vulnInjectBtnWrapper" style="display:none;margin-bottom:20px;text-align:center;">
+          <button class="btn" id="vulnInjectBtn"
+            onclick="openVulnInjectionPanel()"
+            style="font-size:13px;padding:12px 32px;letter-spacing:2px;
+                   background:linear-gradient(135deg,#ff2244,#8b0000);
+                   border:1px solid #ff2244;color:#fff;
+                   box-shadow:0 0 18px rgba(255,34,68,0.5);">
+            ☠ INJECT VULNERABILITIES
+          </button>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:8px;font-family:'Share Tech Mono',monospace;letter-spacing:2px;">
+            VMs CONFIGURED — CLICK TO OPEN INJECTION PANEL
+          </div>
+        </div>
+
+      </div><!-- /activeRange -->
+
+    </main>
+  </div>
+</div>
+
+<!-- ═══════════════════ DESTROY MODAL ═══════════════════ -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <div class="corner-tl"></div><div class="corner-br"></div>
+    <div class="modal-title">⚠ CONFIRM DESTROY</div>
+    <div class="modal-body">This will terminate ALL running VMs and destroy the Terraform state.<br>This action <strong style="color:var(--warn)">cannot be undone.</strong></div>
+    <div class="modal-btns">
+      <button class="modal-btn modal-cancel" onclick="closeModal()">CANCEL</button>
+      <button class="modal-btn modal-confirm" onclick="confirmDestroy()">DESTROY ALL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ NETWORK SCHEMA ═══════════════════ -->
+<!-- ══════ VULNERABILITY INJECTION PAGE (full-screen overlay) ══════ -->
+<div id="vulnPage">
+  <div class="vi-header">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="vi-skull">☠</div>
+      <div>
+        <div class="vi-title">VULNERABILITY INJECTION CONSOLE</div>
+        <div class="vi-subtitle">LIVE DEPLOY — SELECT TARGET · SELECT EXPLOIT · LAUNCH</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="vi-stats">
+        <div class="vi-stat-item"><span id="viStatTotal">0</span><span class="vi-stat-label">TARGETS</span></div>
+        <div class="vi-stat-sep"></div>
+        <div class="vi-stat-item"><span id="viStatInjected">0</span><span class="vi-stat-label">INJECTED</span></div>
+        <div class="vi-stat-sep"></div>
+        <div class="vi-stat-item"><span id="viStatActive">0</span><span class="vi-stat-label">ACTIVE VULNS</span></div>
+      </div>
+      <button class="btn" style="padding:10px 28px;font-size:11px;letter-spacing:2px;" onclick="hideVulnPage()">⬅ RETURN</button>
+    </div>
+  </div>
+  <div class="vi-body">
+    <div class="vi-left-panel">
+      <div class="vi-panel-label">⬡ TARGET MACHINES — SELECT &amp; INJECT</div>
+      <div id="vulnInjectGrid"></div>
+    </div>
+    <div class="vi-right-panel">
+      <div class="vi-panel-label">⚡ INJECTION LOG — LIVE FEED</div>
+      <div id="viInjectionLog">
+        <div class="vi-log-empty">No injections yet — select a target and launch</div>
+      </div>
+      <div class="vi-log-summary" id="viLogSummary" style="display:none;">
+        <div class="vi-panel-label" style="margin-top:20px;">📊 INJECTION SUMMARY</div>
+        <div id="viSummaryGrid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="schemaPage">
+  <div class="schema-header">
+    <div class="schema-title">⬢ NETWORK SCHEMA — CYBERRANGE TOPOLOGY</div>
+    <button class="btn btn-deploy" style="padding:10px 32px;font-size:11px;" onclick="hideSchema()">⬅ RETURN</button>
+  </div>
+  <div class="schema-body">
+    <div class="schema-zones">
+      <div class="zone-box red-zone">
+        <div class="zone-label">◉ Red Team</div>
+        <div class="zone-sub">VLAN 30 — ATTACKER NETWORK</div>
+        <div class="zone-section-label">Attacker Nodes</div>
+        <div id="schemaRed"><div style="text-align:center;color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:11px;padding:40px;">No attacker nodes deployed</div></div>
+      </div>
+      <div class="firewall-col">
+        <span class="vlan-tag vlan-left">VLAN 30</span>
+        <span class="vlan-tag vlan-right">VLAN 20</span>
+        <div class="firewall-icon"><img src="/static/pfsense.png" alt="pfSense"/></div>
+        <div class="firewall-label">ROUTER / FIREWALL</div>
+      </div>
+      <div class="zone-box blue-zone">
+        <div class="zone-label">◉ Blue Team</div>
+        <div class="zone-sub">VLAN 20 — DEFENDER NETWORK</div>
+        <div class="zone-section-label">Servers</div>
+        <div id="schemaBlueServers"><div style="text-align:center;color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:11px;padding:20px;">No servers deployed</div></div>
+        <div class="zone-section-label">Clients</div>
+        <div id="schemaBlueClients"><div style="text-align:center;color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:11px;padding:20px;">No clients deployed</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+const state = {
+  loggedIn: false,
+  currentUser: '',
+  scenario: 's1',
+  s2type:   null,
+  s2webmode: null,
+  s2port:   9001,
+  s2portLabel: 'VulnLab (port 9001)',
+  exercise: { name:'', course:'', duration:'', steps:{basics:false,scenario:false,config:false,vulns:false} },
+  vmCounts: { wazuh:0, web:0, db:0, ftp:0, win10:0, linux:0, kali:0 },
+  activeExercise: (()=>{ try{ const s=localStorage.getItem('activeExercise'); return s?JSON.parse(s):null; }catch(e){ return null; } })(),
+  rangeRunning: false,
+};
+
+let briefingDB = {};
+let statusInterval = null;
+let lastStatusData = [];
+let activeWs = null;
+
+const CIRCUMFERENCE = 2 * Math.PI * 52;
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  fetch('/scenario_briefings.json').then(r=>r.json()).then(d=>{ briefingDB = d; }).catch(()=>{});
+  tickClock();
+  setInterval(tickClock, 1000);
+  const token = sessionStorage.getItem('cr_token');
+  if (token) {
+    state.loggedIn = true;
+    state.currentUser = sessionStorage.getItem('cr_user') || 'operator';
+    showApp();
+  }
+});
+
+function tickClock(){
+  document.getElementById('clock').textContent = new Date().toTimeString().slice(0,8);
+}
+
+// ════════════════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════════════════
+async function handleLogin(){
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  try {
+    const r = await fetch('/api/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username:user, password:pass})
+    });
+    if (!r.ok) throw new Error('invalid');
+    const d = await r.json();
+    sessionStorage.setItem('cr_token', d.token);
+    sessionStorage.setItem('cr_user', d.username);
+    state.loggedIn = true;
+    state.currentUser = d.username;
+    showApp();
+  } catch(e){
+    errEl.style.display = 'block';
+  }
+}
+
+function handleLogout(){
+  sessionStorage.clear();
+  state.loggedIn = false;
+  document.getElementById('loginView').style.display = 'flex';
+  document.getElementById('appView').style.display = 'none';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+
+function showApp(){
+  document.getElementById('loginView').style.display = 'none';
+  const av = document.getElementById('appView');
+  av.style.display = 'flex';
+  av.classList.add('active');
+  navigate('dashboard');
+  loadStatus();
+  statusInterval = setInterval(loadStatus, 5000);
+  updateSidebarLockState();
+}
+
+// ════════════════════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════════════════════
+function navigate(target){
+  // Block Exercise Setup navigation when range is deploying or active
+  const setupScreens = ['basics','scenario','config','review'];
+  const isDeployingOrActive = state.rangeRunning || lastStatusData.length > 0;
+  if(setupScreens.includes(target) && isDeployingOrActive) return;
+
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const screen = document.getElementById('screen-'+target);
+  if(screen) screen.classList.add('active');
+  // Highlight by data-screen OR by id
+  const navItem = document.querySelector(`[data-screen="${target}"]`) || document.getElementById('nav-'+target);
+  if(navItem) navItem.classList.add('active');
+  document.querySelector('.main-content').scrollTop = 0;
+  if(target === 'dashboard') syncDashboard();
+  if(target === 'review') buildReview();
+  // Re-apply lock state after nav-item class reset
+  updateSidebarLockState();
+}
+
+// Lock or unlock Exercise Setup sidebar items based on deploy/active state
+function updateSidebarLockState(){
+  const isDeployingOrActive = state.rangeRunning || lastStatusData.length > 0;
+  const setupItems = ['basics','scenario','config','review'];
+  setupItems.forEach(id => {
+    const navEl  = document.getElementById('nav-'+id);
+    const lockEl = document.getElementById('lock-'+id);
+    if(!navEl) return;
+    if(isDeployingOrActive){
+      navEl.classList.add('locked');
+      if(lockEl) lockEl.style.display = 'inline';
+    } else {
+      navEl.classList.remove('locked');
+      if(lockEl) lockEl.style.display = 'none';
+    }
+  });
+  // Dashboard and Operations items are NEVER locked
+  ['nav-dashboard'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('locked');
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// EXERCISE WIZARD
+// ════════════════════════════════════════════════════════════
+function startNewExercise(){
+  state.exercise = {name:'',course:'',duration:'',steps:{basics:false,scenario:false,briefing:false,config:false}};
+  state.vmCounts = {wazuh:0,web:0,db:0,ftp:0,win10:0,linux:0,kali:0};
+  state.scenario = 's1';
+  state.s2type   = null;
+  state.s2webmode = null;
+  state.s2port   = 9001;
+  document.getElementById('s2-options').style.display = 'none';
+  document.getElementById('exName').value = '';
+  document.getElementById('exCourse').value = '';
+  ['vm-wazuh','vm-web','vm-db','vm-ftp','vm-win10','vm-linux','vm-kali'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = 0;
+  });
+  document.querySelectorAll('.scenario-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelector('[data-scenario="s1"]').classList.add('selected');
+  navigate('basics');
+}
+
+function saveBasics(){
+  const name   = document.getElementById('exName').value.trim();
+  const course = document.getElementById('exCourse').value.trim();
+  if(!name || !course){ alert('Please enter Exercise Name and Course Name.'); return; }
+  const durEl = document.getElementById('exDuration');
+  state.exercise.name     = name;
+  state.exercise.course   = course;
+  state.exercise.duration = durEl.options[durEl.selectedIndex].text;
+  state.exercise.steps.basics = true;
+  navigate('scenario');
+  loadInlineBriefing(state.scenario);
+}
+
+function selectScenario(el){
+  document.querySelectorAll('.scenario-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  state.scenario = el.dataset.scenario;
+  loadBriefing(state.scenario);
+  loadInlineBriefing(state.scenario);
+  // Show sub-options for scenario 2 and scenario 3
+  const s2panel = document.getElementById('s2-options');
+  const title   = document.getElementById('s2-options-title');
+  const webDesc = document.getElementById('btn-webvuln-desc');
+  if(state.scenario === 's2' || state.scenario === 's3'){
+    s2panel.style.display = 'block';
+    if(state.scenario === 's2'){
+      title.textContent   = '⚔ SCENARIO 2 — CONFIGURATION';
+      webDesc.textContent = 'Web + DB + clients — VulnLab (port 9001)';
+    } else {
+      title.textContent   = '🔥 SCENARIO 3 — CONFIGURATION';
+      webDesc.textContent = 'Web + DB + clients — CyberRangeLab (port 9002)';
+    }
+  } else {
+    s2panel.style.display = 'none';
+  }
+  // Reset s2 state on scenario change
+  state.s2type    = null;
+  state.s2webmode = null;
+  // Reset button highlights
+  ['btn-sysvuln','btn-webvuln'].forEach(id => {
+    const b = document.getElementById(id);
+    if(b){ b.style.borderColor='var(--border)'; b.style.background='var(--panel)'; b.style.color='var(--text)'; }
+  });
+  document.getElementById('s2-config-summary').style.display = 'none';
+}
+
+// s2/s3 vuln type: 'system' or 'web'
+function selectS2Type(type){
+  state.s2type = type;
+
+  // Auto-assign lab_mode based on scenario + type:
+  //   s2 + web  → training (VulnLab 9001)
+  //   s3 + web  → exercise (CyberRangeLab 9002)
+  //   any + system → no web lab needed
+  if(type === 'web'){
+    state.s2webmode = state.scenario === 's3' ? 'exercise' : 'training';
+  } else {
+    state.s2webmode = null;
+  }
+  state.s2port      = state.s2webmode === 'exercise' ? 9002 : 9001;
+  state.s2portLabel = state.s2webmode === 'exercise' ? 'CyberRangeLab (port 9002)' : 'VulnLab (port 9001)';
+
+  // Highlight selected button
+  const btnSys = document.getElementById('btn-sysvuln');
+  const btnWeb = document.getElementById('btn-webvuln');
+  if(type === 'system'){
+    btnSys.style.borderColor='var(--accent)'; btnSys.style.background='rgba(0,200,255,0.08)'; btnSys.style.color='var(--accent)';
+    btnWeb.style.borderColor='var(--border)'; btnWeb.style.background='var(--panel)';          btnWeb.style.color='var(--text)';
+  } else {
+    btnWeb.style.borderColor='var(--accent)'; btnWeb.style.background='rgba(0,200,255,0.08)'; btnWeb.style.color='var(--accent)';
+    btnSys.style.borderColor='var(--border)'; btnSys.style.background='var(--panel)';          btnSys.style.color='var(--text)';
+  }
+  showS2Summary();
+}
+
+function showS2Summary(){
+  const summary = document.getElementById('s2-config-summary');
+  const text    = document.getElementById('s2-summary-text');
+  if(!state.s2type){ summary.style.display='none'; return; }
+
+  let lines = [];
+  if(state.s2type === 'system'){
+    lines = [
+      '▸ FTP Server    → 1  (enabled)',
+      '▸ Windows       → 1  (enabled)',
+      '▸ Linux Client  → 1  (enabled)',
+      '▸ Kali          → 1  (enabled)',
+      '▸ Wazuh Server  → 0  (disabled)',
+      '▸ Web Server    → 0  (disabled)',
+      '▸ DB Server     → 0  (disabled)',
+      '▸ ADDC          → 1  (fixed)',
+    ];
+  } else {
+    const portLabel = state.scenario === 's3'
+      ? '9002  →  CyberRangeLab  (auto)'
+      : '9001  →  VulnLab        (auto)';
+    lines = [
+      '▸ Web Server    → 1  (enabled)',
+      '▸ DB Server     → 1  (enabled)',
+      '▸ Windows       → 1  (enabled)',
+      '▸ Linux Client  → 1  (enabled)',
+      '▸ Kali          → 1  (enabled)',
+      '▸ FTP Server    → 0  (disabled)',
+      '▸ Wazuh Server  → 0  (disabled)',
+      '▸ ADDC          → 1  (fixed)',
+      `▸ Lab Port      → ${portLabel}`,
+    ];
+  }
+  text.textContent = lines.join('\n');
+  summary.style.display = 'block';
+}
+
+function saveScenario(){
+  if(state.scenario === 's2' || state.scenario === 's3'){
+    if(!state.s2type){
+      alert('Please select System Vulnerabilities or Web Vulnerabilities before proceeding.');
+      return;
+    }
+    applyS2Config();
+  }
+  state.exercise.steps.scenario = true;
+  state.exercise.steps.briefing = true;
+  loadBriefing(state.scenario);
+  navigate('config');
+}
+
+function applyS2Config(){
+  const setVM = (id, val) => {
+    const el = document.getElementById(id);
+    if(el && !el.readOnly) el.value = val;
+  };
+
+  if(state.s2type === 'system'){
+    // FTP + clients — web/db/wazuh disabled
+    setVM('vm-wazuh', 0);
+    setVM('vm-web',   0);
+    setVM('vm-db',    0);
+    setVM('vm-ftp',   1);
+    setVM('vm-win10', 1);
+    setVM('vm-linux', 1);
+    setVM('vm-kali',  1);
+  } else if(state.s2type === 'web'){
+    // Web + DB + clients
+    setVM('vm-wazuh', 0);
+    setVM('vm-web',   1);
+    setVM('vm-db',    1);
+    setVM('vm-ftp',   0);
+    setVM('vm-win10', 1);
+    setVM('vm-linux', 1);
+    setVM('vm-kali',  1);
+    // Store port mode in state for Terraform vars / display
+    state.s2port = state.s2webmode === 'training' ? 9001 : 9002;
+    state.s2portLabel = state.s2webmode === 'training' ? 'VulnLab (port 9001)' : 'CyberRangeLab (port 9002)';
+  }
+}
+
+function loadBriefing(scenarioId){
+  const b = briefingDB[scenarioId];
+  if(!b) return;
+  const t=document.getElementById('briefingTitle');
+  const s=document.getElementById('briefingStory');
+  const o=document.getElementById('briefingObjectives');
+  const r=document.getElementById('briefingRules');
+  if(t) t.textContent = b.title || 'Scenario Briefing';
+  if(s) s.textContent = b.story || '';
+  if(o) o.textContent = b.objectives || '';
+  if(r) r.textContent = b.rules || '';
+  state.exercise.steps.briefing = true;
+}
+
+function loadInlineBriefing(scenarioId){
+  const b = briefingDB[scenarioId];
+  const panel = document.getElementById('inlineBriefingPanel');
+  if(!b || !panel) return;
+  document.getElementById('inlineBriefingTitle').textContent  = (b.title || 'Scenario Briefing').toUpperCase();
+  document.getElementById('inlineBriefingStory').textContent  = b.story || '';
+  document.getElementById('inlineBriefingObjectives').textContent = b.objectives || '';
+  document.getElementById('inlineBriefingRules').textContent  = b.rules || '';
+  panel.style.display = 'block';
+  panel.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function step(id, delta){
+  const el = document.getElementById(id);
+  el.value = Math.max(0, (parseInt(el.value)||0) + delta);
+}
+
+function brickFill(){
+  ['vm-wazuh','vm-web','vm-db','vm-ftp','vm-win10','vm-linux','vm-kali'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value = 1;
+  });
+}
+
+function saveConfig(){
+  const counts = {
+    wazuh: parseInt(document.getElementById('vm-wazuh').value)||0,
+    web:   parseInt(document.getElementById('vm-web').value)||0,
+    db:    parseInt(document.getElementById('vm-db').value)||0,
+    ftp:   parseInt(document.getElementById('vm-ftp').value)||0,
+    win10: parseInt(document.getElementById('vm-win10').value)||0,
+    linux: parseInt(document.getElementById('vm-linux').value)||0,
+    kali:  parseInt(document.getElementById('vm-kali').value)||0,
+  };
+  const total = Object.values(counts).reduce((a,b)=>a+b,0);
+  const errEl = document.getElementById('configError');
+  if(total === 0){ errEl.textContent = 'Error: Please provision at least 1 VM.'; errEl.style.display='block'; return; }
+  if(total > 15){ errEl.textContent = `Error: Total ${total} VMs exceeds maximum of 15.`; errEl.style.display='block'; return; }
+  errEl.style.display = 'none';
+  state.vmCounts = counts;
+  state.exercise.steps.config = true;
+  navigate('review');
+}
+
+
+// ════════════════════════════════════════════════════════════
+// REVIEW
+// ════════════════════════════════════════════════════════════
+function buildReview(){
+  const sMap = {s1:'Blue Teaming (Defender Drill)',s2:'Red Teaming (Offensive)',s3:'Red vs. Blue (Live Fire)'};
+  document.getElementById('reviewDetails').innerHTML = `
+    <div class="summary-row"><span class="summary-label">NAME</span><span class="summary-value">${esc(state.exercise.name)}</span></div>
+    <div class="summary-row"><span class="summary-label">COURSE</span><span class="summary-value">${esc(state.exercise.course)}</span></div>
+    <div class="summary-row"><span class="summary-label">DURATION</span><span class="summary-value">${esc(state.exercise.duration)}</span></div>
+    <div class="summary-row" style="border-bottom:none;"><span class="summary-label">SCENARIO</span><span class="pill pill-blue">${sMap[state.scenario]||state.scenario}</span></div>
+  `;
+  const c = state.vmCounts;
+  const blueTotal = (c.wazuh||0)+(c.web||0)+(c.db||0)+(c.ftp||0)+(c.win10||0)+(c.linux||0);
+  document.getElementById('reviewInfra').innerHTML = `
+    <div class="summary-row"><span class="summary-label">BLUE TEAM VMs</span><span class="summary-value">${blueTotal}</span></div>
+    <div class="summary-row"><span class="summary-label">RED TEAM VMs (KALI)</span><span class="summary-value">${c.kali||0}</span></div>
+    <div class="summary-row" style="border-bottom:none;"><span class="summary-label">TOTAL</span><span class="summary-value">${blueTotal+(c.kali||0)}</span></div>
+  `;
+}
+
+// ════════════════════════════════════════════════════════════
+// LAUNCH
+// ════════════════════════════════════════════════════════════
+async function launchExercise(){
+  // lab_mode is auto-assigned in selectS2Type based on scenario:
+  //   s2 + web → training (9001), s3 + web → exercise (9002), system → both (no web lab)
+  const labMode = (state.scenario === 's2' || state.scenario === 's3')
+    ? (state.s2webmode || 'both')
+    : 'both';
+
+  const config = {
+    name:            state.exercise.name,
+    course:          state.exercise.course,
+    duration:        state.exercise.duration,
+    scenario:        state.scenario,
+    vm_counts:       state.vmCounts,
+    lab_mode:        labMode,
+    s2_vuln_type:    state.s2type || '',
+  };
+
+  await fetch('/api/exercise/start', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(config)
+  });
+  await fetch('/deploy', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      win10: state.vmCounts.win10, linux: state.vmCounts.linux,
+      kali:  state.vmCounts.kali,  wazuh: state.vmCounts.wazuh,
+      web:   state.vmCounts.web,   db:    state.vmCounts.db,
+      ftp:   state.vmCounts.ftp,
+    })
+  });
+
+  state.rangeRunning = true;
+  state.activeExercise = config;
+  localStorage.setItem('activeExercise', JSON.stringify(config));
+  updateSidebarLockState();
+
+  // Update active range header
+  document.getElementById('rangeExName').textContent = state.exercise.name;
+  document.getElementById('rangeExInfo').textContent =
+    `${state.exercise.course} · Duration: ${state.exercise.duration}`;
+  document.getElementById('rangeBadge').style.display = 'inline';
+
+  document.getElementById('pipelineBanner').style.display = 'flex';
+  document.getElementById('ansTerminal').innerHTML =
+    `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:11px;flex-direction:column;gap:10px;"><span>AWAITING TERRAFORM COMPLETION</span><span style="color:var(--ansible2);letter-spacing:4px;">· · ·</span></div>`;
+
+  navigate('activeRange');
+  openWebSocket('deploy');
+}
+
+// ════════════════════════════════════════════════════════════
+// RE-DEPLOY (resume from active range on failure/idle)
+// ════════════════════════════════════════════════════════════
+async function reDeployExercise(){
+  if(!state.activeExercise){
+    document.getElementById('statusMsg').textContent = 'ERROR — No active exercise config found.';
+    return;
+  }
+  const config = state.activeExercise;
+
+  // Hide re-deploy button while running
+  document.getElementById('reDeployBtn').style.display = 'none';
+
+  await fetch('/api/exercise/start', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(config)
+  });
+  await fetch('/deploy', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      win10: config.vm_counts.win10, linux: config.vm_counts.linux,
+      kali:  config.vm_counts.kali,  wazuh: config.vm_counts.wazuh,
+      web:   config.vm_counts.web,   db:    config.vm_counts.db,
+      ftp:   config.vm_counts.ftp,
+    })
+  });
+
+  // Reset terminals and pipeline
+  document.getElementById('tfTerminal').innerHTML = '';
+  document.getElementById('ansTerminal').innerHTML =
+    `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:11px;flex-direction:column;gap:10px;"><span>AWAITING TERRAFORM COMPLETION</span><span style="color:var(--ansible2);letter-spacing:4px;">· · ·</span></div>`;
+  document.getElementById('ansCounts').style.display = 'none';
+  document.getElementById('vulnPage').classList.remove('show');
+  updateProgress(0, false);
+  setPipelineStep('terraform');
+  document.getElementById('pipelineBanner').style.display = 'flex';
+  document.getElementById('tfLogo').style.filter = '';
+  document.getElementById('ansLogo').style.filter = '';
+
+  openWebSocket('deploy');
+}
+
+// ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+function openWebSocket(action){
+  if(activeWs && activeWs.readyState === WebSocket.OPEN) activeWs.close();
+  if(statusInterval){ clearInterval(statusInterval); statusInterval = null; }
+
+  const logo = document.getElementById('tfLogo');
+  logo.style.animation = 'rotateLogo 1.2s linear infinite';
+  document.getElementById('tfTerminal').innerHTML = '';
+
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws    = new WebSocket(`${proto}://${location.host}/ws`);
+  activeWs    = ws;
+
+  setPipelineStep('terraform');
+
+  ws.onopen = ()=>{
+    ws.send(JSON.stringify({action}));
+    document.getElementById('statusMsg').textContent = action.toUpperCase()+' IN PROGRESS...';
+  };
+  ws.onmessage = (e)=>{
+    let d; try{ d=JSON.parse(e.data); }catch{ return; }
+    if(d.log) logTo('tfTerminal', d.log);
+    if(typeof d.progress === 'number') updateProgress(d.progress, false);
+    if(d.ansible_ready){
+      logo.style.animation = 'none';
+      logo.style.filter = 'drop-shadow(0 0 14px #00ff9d)';
+      document.getElementById('ph-inv').classList.add('done');
+      setPipelineStep('inventory');
+      logTo('tfTerminal','▶ Inventory generated. Handing off to Ansible...','ok');
+      setTimeout(()=>openAnsibleSocket(), 800);
+      return;
+    }
+    if(d.complete){
+      logo.style.animation = 'none';
+      document.getElementById('statusMsg').textContent = d.log||'COMPLETE';
+      if(d.success === false || (d.log && /error|failed/i.test(d.log))){
+        logo.style.filter = 'drop-shadow(0 0 14px var(--warn))';
+        document.getElementById('reDeployBtn').style.display = 'inline-flex';
+      }
+      loadStatus();
+      statusInterval = setInterval(loadStatus, 5000);
+    }
+  };
+  ws.onerror = ()=>{ 
+    logTo('tfTerminal','[ERROR] WebSocket error','err');
+    document.getElementById('reDeployBtn').style.display = 'inline-flex';
+  };
+  ws.onclose = ()=>{ activeWs = null; };
+}
+
+// ════════════════════════════════════════════════════════════
+// WEBSOCKET — ANSIBLE
+// ════════════════════════════════════════════════════════════
+function openAnsibleSocket(){
+  const logo = document.getElementById('ansLogo');
+  const term = document.getElementById('ansTerminal');
+  const pill = document.getElementById('ansibleStatusPill');
+  const dot  = document.getElementById('ansibleDot');
+  pill.style.color = 'var(--ansible2)';
+  dot.style.background = 'var(--ansible2)';
+  dot.style.boxShadow  = '0 0 8px var(--ansible2)';
+  dot.style.animation  = 'pulse 2s ease-in-out infinite';
+  term.innerHTML = '';
+  logo.style.animation = 'rotateLogo 1.8s linear infinite';
+  document.getElementById('barLabel').textContent = 'ANSIBLE PIPELINE';
+  document.getElementById('ansCounts').style.display = 'flex';
+  setPipelineStep('ansible');
+
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws    = new WebSocket(`${proto}://${location.host}/ws/ansible`);
+
+  ws.onopen = ()=>{ document.getElementById('statusMsg').textContent = 'ANSIBLE CONFIGURING VMs...'; };
+  ws.onmessage = (e)=>{
+    let d; try{ d=JSON.parse(e.data); }catch{ return; }
+    if(d.log){
+      const cls = classifyAnsLine(d.log);
+      logTo('ansTerminal', d.log, cls);
+    }
+    if(typeof d.progress === 'number') updateProgress(d.progress, true);
+    if(d.counts){
+      document.getElementById('cntOk').textContent      = `OK: ${d.counts.ok}`;
+      document.getElementById('cntChanged').textContent = `CHANGED: ${d.counts.changed}`;
+      document.getElementById('cntFailed').textContent  = `FAILED: ${d.counts.failed}`;
+    }
+    if(d.complete){
+      logo.style.animation = 'none';
+      logo.style.filter    = d.success ? 'drop-shadow(0 0 14px var(--ansible2))' : 'drop-shadow(0 0 14px var(--warn))';
+      setPipelineStep(d.success ? 'done' : 'ansible');
+      if(d.success){
+        document.getElementById('statusMsg').textContent = 'PIPELINE COMPLETE — ALL VMs CONFIGURED';
+        document.getElementById('reDeployBtn').style.display = 'none';
+        updateProgress(100, false);
+      } else {
+        document.getElementById('statusMsg').textContent = 'ANSIBLE COMPLETE (WITH FAILURES) — CHECK OUTPUT';
+        document.getElementById('reDeployBtn').style.display = 'inline-flex';
+      }
+      // Show inject button regardless of failures — VMs may still be running
+      loadStatus().then(()=>{
+        if(lastStatusData.length > 0){
+          buildVulnInjectPanel();
+          document.getElementById('vulnInjectBtnWrapper').style.display = 'block';
+          document.getElementById('dashVulnInjectBtnWrapper').style.display = 'block';
+        }
+      });
+      statusInterval = setInterval(loadStatus, 5000);
+      syncDashboard();
+    }
+  };
+  ws.onerror = ()=>{ 
+    logTo('ansTerminal','[ERROR] Ansible WebSocket error','err');
+    document.getElementById('reDeployBtn').style.display = 'inline-flex';
+    statusInterval = setInterval(loadStatus, 5000);
+  };
+}
+
+// ════════════════════════════════════════════════════════════
+// VULNERABILITY INJECTION CONSOLE
+// ════════════════════════════════════════════════════════════
+
+// Per-VM injection history: { vmName: [{id, name, severity, time}] }
+const injectionHistory = {};
+
+// Running injection count per VM
+const activeInjections = {};
+
+const VULN_CATALOG = [
+  // ── Linux Client (ubu) ─────────────────────────────────────────────
+  {id:"ssh_brute_force",         name:"SSH Brute Force",                    cve:"CWE-307",       description:"labuser:toor NOPASSWD sudo, MaxAuthTries=100, fail2ban off",          severity:"high",     vm_types:["linux","ubu","web","db","ftp","wazuh"]},
+  {id:"suid_binary",             name:"SUID Binary Misconfiguration",       cve:"CWE-250",       description:"SUID bash/find/python3 in /tmp — instant root shell",                severity:"high",     vm_types:["linux","ubu","web","db","ftp","wazuh"]},
+  {id:"nfs_misconfiguration",    name:"NFS no_root_squash",                 cve:"CWE-732",       description:"NFS export no_root_squash — mount and plant SUID shell",             severity:"high",     vm_types:["linux","ubu","web","db","ftp","wazuh"]},
+  {id:"plain_text_creds",        name:"Plaintext Credentials in Config",    cve:"CWE-312",       description:"Admin@123 in /opt/app/config/ and /var/log/app/app.log",              severity:"high",     vm_types:["linux","ubu","web","db"]},
+  {id:"open_ports",              name:"Unnecessary Open Ports / No Firewall",cve:"CWE-284",      description:"UFW disabled, netcat listeners on 4444/8888",                         severity:"medium",   vm_types:["linux","ubu","web","db","ftp","wazuh"]},
+  {id:"log_tampering",           name:"Log Tampering / Audit Disabled",     cve:"CWE-778",       description:"/var/log chmod 777, auditd/rsyslog stopped",                          severity:"medium",   vm_types:["linux","ubu","web","db","ftp","wazuh"]},
+  {id:"weak_passwords",          name:"Weak User Passwords",                cve:"CWE-521",       description:"alice/bob/charlie/david username=password, pam_pwquality disabled",   severity:"medium",   vm_types:["ubu"]},
+  {id:"no_host_firewall",        name:"No Host Firewall",                   cve:"CWE-284",       description:"UFW and iptables completely disabled",                                severity:"medium",   vm_types:["ubu"]},
+  {id:"kernel_hardening_disabled",name:"Kernel Hardening Disabled",        cve:"CWE-693",       description:"ASLR=0, kptr_restrict=0, ptrace_scope=0 written to sysctl.conf",      severity:"critical", vm_types:["ubu"]},
+  {id:"insecure_bash_history",   name:"Sensitive Data in Bash History",     cve:"CWE-312",       description:"Admin@123 and mysql credentials in bash history",                     severity:"low",      vm_types:["linux","ubu","web","db","ftp"]},
+  {id:"lxd_privesc",             name:"LXD Group Privilege Escalation",     cve:"CWE-269",       description:"lxduser:password in lxd group — privileged container mounts host /", severity:"critical", vm_types:["ubu"]},
+  {id:"exposed_api_keys",        name:"Exposed API Keys in Environment",    cve:"CWE-312",       description:"AWS keys, GitHub token, DB URL in /etc/environment",                  severity:"high",     vm_types:["ubu"]},
+  {id:"netcat_backdoor",         name:"Netcat Backdoor (4444/1337)",        cve:"CWE-912",       description:"nc -lvnp 4444/1337 -e /bin/bash persisted via crontab",              severity:"critical", vm_types:["ubu"]},
+  {id:"passwd_writable",         name:"World Writable passwd/shadow",       cve:"CWE-732",       description:"/etc/passwd and /etc/shadow chmod 666",                               severity:"critical", vm_types:["ubu"]},
+  {id:"lc01_dirty_cow",          name:"Dirty COW / ASLR Disabled",         cve:"CVE-2016-5195", description:"ASLR=0 in sysctl.conf, SUID bash in /tmp",                           severity:"critical", vm_types:["ubu"]},
+  {id:"cronjob_misconfig",  name:"Cronjob Misconfiguration",          cve:"CWE-732",       description:"World-writable cron script runs as root", severity:"high",     vm_types:["linux","ubu","web","db","ftp","wazuh"]},
+  {id:"lc04_cronjob",            name:"Writable Cron Jobs",                 cve:"CWE-732",       description:"/opt/cleanup.sh chmod 777, runs as root every minute",               severity:"high",     vm_types:["ubu"]},
+  // ── Linux Servers ──────────────────────────────────────────────────
+  {id:"weak_file_permissions",   name:"Weak File Permissions",              cve:"CWE-732",       description:"/etc/passwd /etc/shadow /etc/sudoers chmod 777",                      severity:"medium",   vm_types:["linux","ubu","web","db","ftp","wazuh"]},
+  {id:"mysql_brute_force",       name:"MySQL Remote Root",                  cve:"CWE-521",       description:"root@%/admin@%/sa@% remote access, bind-address=0.0.0.0",            severity:"critical", vm_types:["db"]},
+  {id:"ftp_anonymous",           name:"FTP Anonymous Login",                cve:"CWE-284",       description:"Anonymous FTP enabled, credentials.txt in /var/ftp/pub",             severity:"medium",   vm_types:["ftp"]},
+  {id:"insecure_service_config", name:"Insecure Apache Config",             cve:"CWE-16",        description:"ServerTokens Full, directory listing enabled",                        severity:"low",      vm_types:["web"]},
+  // ── Windows Client ─────────────────────────────────────────────────
+  {id:"weak_admin_password",     name:"Weak Admin Password",                cve:"CWE-521",       description:"labuser:Lab@123 created as local administrator",                      severity:"high",     vm_types:["windows","win10"]},
+  {id:"powershell_unrestricted", name:"PowerShell Unrestricted",            cve:"CWE-732",       description:"ExecutionPolicy=Unrestricted, AMSI disabled",                        severity:"high",     vm_types:["windows","win10"]},
+  {id:"smb_signing_off",         name:"SMB Signing Disabled",               cve:"CWE-300",       description:"SMB signing disabled — NTLM relay attacks possible",                 severity:"medium",   vm_types:["windows","win10"]},
+  {id:"local_admin_everyone",    name:"Everyone in Local Administrators",   cve:"CWE-269",       description:"Everyone group in Administrators — any user has local admin",         severity:"high",     vm_types:["windows","win10"]},
+  {id:"windows_update_disabled", name:"Windows Update Disabled",            cve:"CWE-1329",      description:"wuauserv stopped/disabled — no security patches",                    severity:"low",      vm_types:["windows","win10"]},
+  // ── ADDC ───────────────────────────────────────────────────────────
+  {id:"kerberoasting",           name:"Kerberoasting",                      cve:"CWE-522",       description:"svc_http/mssql/backup SPNs with RC4 encryption",                     severity:"critical", vm_types:["addc"]},
+  {id:"asrep_roasting",          name:"AS-REP Roasting",                    cve:"CWE-522",       description:"Pre-auth disabled on j.morrison/t.williams/noauth_svc",              severity:"high",     vm_types:["addc"]},
+  {id:"dcsync",                  name:"DCSync",                             cve:"CWE-269",       description:"repl_svc:Repl1cate! has DS-Replication-Get-Changes-All rights",      severity:"critical", vm_types:["addc"]},
+  {id:"weak_gpo",                name:"Weak GPO / Password Policy",         cve:"CWE-521",       description:"Password complexity off, WinRM open to all",                         severity:"medium",   vm_types:["addc"]},
+  {id:"golden_ticket_target",    name:"Golden Ticket Target",               cve:"CWE-522",       description:"KRBTGT password = Krbtgt@123! — forge golden tickets",               severity:"critical", vm_types:["addc"]},
+  {id:"domain_user_enum",        name:"Domain User Enumeration",            cve:"CWE-284",       description:"Anonymous enumeration, null session pipes open",                      severity:"low",      vm_types:["addc"]},
+  {id:"password_spray_target",   name:"Password Spray Target",              cve:"CWE-521",       description:"emp001-emp010 all use Welcome1!, lockout threshold=0",               severity:"medium",   vm_types:["addc"]},
+  {id:"ad_recycle_disabled",     name:"AD Recycle Bin Disabled",            cve:"CWE-778",       description:"AD Recycle Bin off, all audit policies cleared",                     severity:"low",      vm_types:["addc"]},
+  {id:"ntlm_relay_target",       name:"NTLM Relay Target",                  cve:"CWE-300",       description:"SMB/LDAP signing off, NTLMv1 — relay captured hashes",              severity:"high",     vm_types:["addc"]},
+  {id:"unconstrained_delegation",name:"Unconstrained Delegation",          cve:"CWE-269",       description:"svc_delegate:Delegate@123 TrustedForDelegation=true",                severity:"critical", vm_types:["addc"]},
+  {id:"shadow_credentials",      name:"Shadow Credentials",                 cve:"CWE-522",       description:"shadow_target:Shadow@123 can manipulate msDS-KeyCredentialLink",     severity:"high",     vm_types:["addc"]},
+  {id:"replication_exposed",     name:"Replication Exposed",                cve:"CWE-269",       description:"repl_svc2:Repl@2024! has DCSync rights",                             severity:"critical", vm_types:["addc"]},
+  {id:"protected_users_disabled",name:"Protected Users Disabled",          cve:"CWE-269",       description:"Protected Users group emptied — privileged accounts delegatable",    severity:"high",     vm_types:["addc"]},
+  // ── Scenario Scripts ───────────────────────────────────────────────
+  {id:"scenario_2",              name:"Scenario 2 — TryHackMe Lab",        cve:"CWE-284",       description:"Full TryHackMe-style Windows lab injection",                          severity:"critical", vm_types:["windows","win10"]},
+  {id:"scenario2linux",          name:"Scenario 2 Linux — TryHackMe Lab",  cve:"CWE-284",       description:"60-challenge TryHackMe Linux lab injection",                          severity:"critical", vm_types:["ubu","linux"]},
+  {id:"scenario3win",            name:"Scenario 3 Windows — Full Injection",cve:"CWE-284",      description:"All 12 WC vulnerabilities injected simultaneously",                   severity:"critical", vm_types:["windows","win10"]},
+  {id:"scenario3linux",          name:"Scenario 3 Linux — Full Injection",  cve:"CWE-284",      description:"All 18 LC/LS vulnerabilities injected simultaneously",                severity:"critical", vm_types:["ubu","linux"]}
+];
+function sevClass(s){ return 'sev-'+(s||'low'); }
+
+function updateViStats(){
+  const vms = lastStatusData.filter(v=>v.status==='running').length;
+  const injected = Object.keys(injectionHistory).filter(k=>injectionHistory[k].length>0).length;
+  const total = Object.values(injectionHistory).reduce((a,b)=>a+b.length,0);
+  document.getElementById('viStatTotal').textContent    = vms;
+  document.getElementById('viStatInjected').textContent = injected;
+  document.getElementById('viStatActive').textContent   = total;
+}
+
+async function openVulnInjectionPanel(){
+  document.getElementById('vulnPage').classList.add('show');
+  if(lastStatusData.length === 0) await loadStatus();
+  buildVulnInjectPanel();
+}
+
+function hideVulnPage(){
+  document.getElementById('vulnPage').classList.remove('show');
+}
+
+const SEV_COLORS = {
+  critical: '#ff2244', high: '#ff8c00', medium: '#ffd700', low: '#00c8ff'
+};
+
+const VULN_DESCS = {
+  ssh_brute_force:   {cve:'N/A',           desc:'SSH weakened — password auth enabled, root login allowed, lockout removed'},
+
+  sudo_privesc:      {cve:'N/A',           desc:'Sudoers misconfigured — NOPASSWD + dangerous commands for any user'},
+  cronjob_misconfig: {cve:'N/A',           desc:'World-writable cron script executed by root every minute'},
+  sql_injection:     {cve:'OWASP A03',     desc:'Vulnerable PHP login page with no sanitisation on port 9001'},
+  ftp_anonymous:     {cve:'N/A',           desc:'Anonymous FTP enabled with sensitive files exposed'},
+  mysql_brute_force: {cve:'N/A',           desc:'Remote root MySQL login with weak password bound to all interfaces'},
+
+  rdp_brute_force:   {cve:'N/A',           desc:'RDP with no lockout policy, weak creds, NLA disabled'},
+  pass_the_hash:     {cve:'N/A',           desc:'WDigest enabled, NTLMv1 allowed, SMB signing off'},
+  kerberoasting:     {cve:'N/A',           desc:'Weak SPNs registered, RC4 forced — Kerberos ticket cracking target'},
+  asrep_roasting:    {cve:'N/A',           desc:'Pre-auth disabled on accounts — hash extraction without credentials'},
+  dcsync:            {cve:'N/A',           desc:'Excessive replication rights — full domain hash dump via DCSync'}
+};
+
+function addInjectionLog(vmName, vmIp, vulnId, vulnName, severity, time, success){
+  const log = document.getElementById('viInjectionLog');
+  const empty = log.querySelector('.vi-log-empty');
+  if(empty) empty.remove();
+
+  const meta   = VULN_DESCS[vulnId] || {cve:'N/A', desc:''};
+  const color  = SEV_COLORS[severity] || '#fff';
+  const entry  = document.createElement('div');
+  entry.className = 'vi-log-entry';
+  entry.innerHTML = `
+    <div class="vi-log-entry-header">
+      <span class="vi-log-machine">${esc(vmName)}</span>
+      <span class="vi-log-time">${time}</span>
+    </div>
+    <div class="vi-log-vuln">${esc(vulnName)}</div>
+    <div class="vi-log-meta">
+      <span class="vi-sev-label ${sevClass(severity)}">${severity.toUpperCase()}</span>
+      ${meta.cve !== 'N/A' ? `<span class="vi-log-cve">${esc(meta.cve)}</span>` : ''}
+      <span class="${success?'vi-log-status-ok':'vi-log-status-fail'}">${success?'✔ SUCCESS':'✘ FAILED'}</span>
+    </div>
+    ${meta.desc ? `<div class="vi-log-desc">${esc(meta.desc)}</div>` : ''}
+    <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);margin-top:4px;">
+      TARGET: ${esc(vmIp)}
+    </div>`;
+
+  // Prepend so newest is at top
+  log.insertBefore(entry, log.firstChild);
+
+  // Update summary panel
+  updateInjectionSummary();
+}
+
+function updateInjectionSummary(){
+  const summary = document.getElementById('viLogSummary');
+  const grid    = document.getElementById('viSummaryGrid');
+  if(!summary || !grid) return;
+
+  const machines = Object.keys(injectionHistory).filter(k=>injectionHistory[k].length>0);
+  if(machines.length === 0){ summary.style.display='none'; return; }
+
+  summary.style.display = 'block';
+  grid.innerHTML = '';
+  machines.forEach(machine => {
+    const vulns = injectionHistory[machine];
+    const card  = document.createElement('div');
+    card.className = 'vi-summary-card';
+    card.innerHTML = `
+      <div class="vi-summary-machine">${esc(machine)} <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);">(${vulns.length} vuln${vulns.length>1?'s':''})</span></div>
+      <div class="vi-summary-tags">
+        ${vulns.map(v=>`<span class="vi-summary-tag ${sevClass(v.severity)}" style="background:rgba(255,69,96,0.1);">${esc(v.name)}</span>`).join('')}
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function buildVulnInjectPanel(){
+  const grid = document.getElementById('vulnInjectGrid');
+  grid.innerHTML = '';
+  updateViStats();
+
+  const runningVms = lastStatusData.filter(v => v.status === 'running');
+  if(runningVms.length === 0){
+    grid.innerHTML = `<div style="grid-column:1/-1;color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:12px;padding:40px;text-align:center;letter-spacing:2px;">NO RUNNING VMs DETECTED — DEPLOY A RANGE FIRST</div>`;
+    return;
+  }
+
+  runningVms.forEach(vm => {
+    const vmType       = vm.name.toLowerCase().includes('addc') ? 'addc' :
+                         vm.type === 'server' ? detectServerType(vm.name) : vm.type;
+    const isWindows    = vm.type === 'windows';
+    const availVulns   = VULN_CATALOG.filter(v => v.vm_types.includes(vmType));
+    if(availVulns.length === 0) return;
+
+    const cardId  = `vi-card-${vm.name.replace(/[^a-z0-9]/gi,'-')}`;
+    const selId   = `vi-sel-${vm.name.replace(/[^a-z0-9]/gi,'-')}`;
+    const termId  = `vi-term-${vm.name.replace(/[^a-z0-9]/gi,'-')}`;
+    const histId  = `vi-hist-${vm.name.replace(/[^a-z0-9]/gi,'-')}`;
+    const sevId   = `vi-sev-${vm.name.replace(/[^a-z0-9]/gi,'-')}`;
+    const descId  = `vi-desc-${vm.name.replace(/[^a-z0-9]/gi,'-')}`;
+
+    const options = availVulns.map(v =>
+      `<option value="${v.id}|${vmType}" data-sev="${v.severity}" data-desc="${esc(v.description)}" data-cve="${esc(v.cve)}">[${v.severity.toUpperCase()}] ${esc(v.name)} ${v.cve!=='N/A'?'('+v.cve+')':''}</option>`
+    ).join('');
+
+    const history = injectionHistory[vm.name] || [];
+    const histHtml = history.length > 0
+      ? `<div class="vi-injected-header">▸ INJECTED VULNERABILITIES</div>
+         <div class="vi-injected-list" id="${histId}">
+           ${history.map(h=>`
+             <div class="vi-injected-item">
+               <span class="vi-sev-label ${sevClass(h.severity)}">${h.severity.toUpperCase()}</span>
+               <span class="vi-injected-name">${esc(h.name)}</span>
+               <span class="vi-injected-time">${h.time}</span>
+             </div>`).join('')}
+         </div>`
+      : `<div class="vi-injected-list" id="${histId}"></div>`;
+
+    grid.innerHTML += `
+      <div class="vi-card" id="${cardId}">
+        <div class="vi-card-header">
+          <img src="${iconForType(vm.type, vm.name)}" class="vi-card-icon"/>
+          <div class="vi-card-info">
+            <div class="vi-card-name">${esc(vm.name)}</div>
+            <div class="vi-card-ip">⬡ ${esc(vm.ip)} &nbsp;·&nbsp; ${vmType.toUpperCase()}</div>
+          </div>
+          <div class="vi-card-status">
+            <div class="vi-status-dot">ONLINE</div>
+            ${history.length > 0 ? `<div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--warn);letter-spacing:1px;margin-top:4px;">⚠ ${history.length} VULN${history.length>1?'S':''}</div>` : ''}
+          </div>
+        </div>
+        <div class="vi-card-body">
+          <select class="vi-select" id="${selId}" onchange="onVulnSelect('${vm.name}')">
+            <option value="">— SELECT VULNERABILITY TO INJECT —</option>
+            ${options}
+          </select>
+          <div class="vi-sev-bar" id="${sevId}"></div>
+          <div class="vi-desc" id="${descId}"></div>
+          <button class="vi-launch-btn" id="vi-btn-${vm.name.replace(/[^a-z0-9]/gi,'-')}"
+            onclick="launchInject('${vm.name}','${vm.ip}')" disabled>
+            ⚡ LAUNCH INJECTION
+          </button>
+          <button class="vi-patch-btn" id="vi-patch-${vm.name.replace(/[^a-z0-9]/gi,'-')}"
+            onclick="launchPatch('${vm.name}','${vm.ip}','${vmType}')">
+            🛡 PATCH ALL
+          </button>
+          <div class="vi-terminal" id="${termId}"></div>
+          <div class="vi-terminal" id="vi-pterm-${vm.name.replace(/[^a-z0-9]/gi,'-')}"></div>
+          ${histHtml}
+        </div>
+      </div>`;
+  });
+}
+
+function onVulnSelect(vmName){
+  const selId  = `vi-sel-${vmName.replace(/[^a-z0-9]/gi,'-')}`;
+  const sevId  = `vi-sev-${vmName.replace(/[^a-z0-9]/gi,'-')}`;
+  const descId = `vi-desc-${vmName.replace(/[^a-z0-9]/gi,'-')}`;
+  const btnId  = `vi-btn-${vmName.replace(/[^a-z0-9]/gi,'-')}`;
+  const sel    = document.getElementById(selId);
+  const btn    = document.getElementById(btnId);
+  if(!sel) return;
+
+  if(!sel.value){ 
+    document.getElementById(sevId).innerHTML  = '';
+    document.getElementById(descId).innerHTML = '';
+    if(btn) btn.disabled = true;
+    return;
+  }
+
+  const opt  = sel.options[sel.selectedIndex];
+  const sev  = opt.dataset.sev;
+  const desc = opt.dataset.desc;
+  const cve  = opt.dataset.cve;
+
+  document.getElementById(sevId).innerHTML  = `<span class="vi-sev-label ${sevClass(sev)}">${sev.toUpperCase()}</span>${cve&&cve!=='N/A'?`<span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:1px;">${cve}</span>`:''}`;
+  document.getElementById(descId).innerHTML = desc;
+  if(btn) btn.disabled = false;
+}
+
+function launchInject(vmName, vmIp){
+  const safeId = vmName.replace(/[^a-z0-9]/gi,'-');
+  const selId  = `vi-sel-${safeId}`;
+  const termId = `vi-term-${safeId}`;
+  const cardId = `vi-card-${safeId}`;
+  const btnId  = `vi-btn-${safeId}`;
+
+  const sel  = document.getElementById(selId);
+  const term = document.getElementById(termId);
+  const card = document.getElementById(cardId);
+  const btn  = document.getElementById(btnId);
+  if(!sel || !sel.value || !term) return;
+
+  const [vulnId, vmType] = sel.value.split('|');
+  const opt      = sel.options[sel.selectedIndex];
+  const vulnName = opt.text.replace(/^\[[^\]]+\] /, '').replace(/ \(CVE[^)]*\)/, '').trim();
+  const severity = opt.dataset.sev;
+
+  // UI: disable controls, show terminal
+  sel.disabled = true;
+  if(btn){ btn.disabled = true; btn.classList.add('launching'); btn.textContent = '⟳ INJECTING...'; }
+  if(card) card.classList.add('injecting');
+  term.className = 'vi-terminal active';
+  term.innerHTML = `<div class="vi-terminal-line info">▸ INITIATING ${vulnId.toUpperCase()} ON ${vmIp}</div>`;
+
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws    = new WebSocket(`${proto}://${location.host}/ws/inject`);
+
+  ws.onopen = () => {ws.send(JSON.stringify({target_host: vmName, vuln_id: vulnId, vm_type: vmType})); };
+
+  ws.onmessage = (e) => {
+    let d; try{ d=JSON.parse(e.data); }catch{ return; }
+    if(d.log){
+      const cls = d.log.includes('✔')||d.log.match(/ok=/i) ? 'ok'
+                : d.log.includes('✘')||d.log.match(/error|failed/i) ? 'err' : 'info';
+      const line = document.createElement('div');
+      line.className = `vi-terminal-line ${cls}`;
+      line.textContent = '> ' + d.log;
+      term.appendChild(line);
+      term.scrollTop = term.scrollHeight;
+    }
+    if(d.complete){
+      const success = d.success !== false;
+      const now = new Date();
+      const timeStr = now.toTimeString().slice(0,5);
+      const summary = document.createElement('div');
+      summary.className = `vi-terminal-line ${success?'done-ok':'done-fail'}`;
+      summary.textContent = success ? `✔ INJECTION COMPLETE — ${vulnName}` : `✘ INJECTION FAILED`;
+      term.appendChild(summary);
+      term.scrollTop = term.scrollHeight;
+
+      if(success){
+        if(!injectionHistory[vmName]) injectionHistory[vmName] = [];
+        injectionHistory[vmName].push({id:vulnId, name:vulnName, severity, time:timeStr});
+        updateViStats();
+      }
+      addInjectionLog(vmName, vmIp, vulnId, vulnName, severity, timeStr, success);
+
+      // Re-enable controls after short delay — reset for next injection
+      setTimeout(() => {
+        sel.disabled = false;
+        sel.value = '';
+        onVulnSelect(vmName);
+        if(card) card.classList.remove('injecting');
+        if(btn){ btn.classList.remove('launching'); btn.textContent = '⚡ LAUNCH INJECTION'; }
+
+        // Refresh injected history block
+        const histId = `vi-hist-${safeId}`;
+        const histEl = document.getElementById(histId);
+        if(histEl && injectionHistory[vmName] && injectionHistory[vmName].length > 0){
+          // Add injected header if first injection
+          const prevHeader = histEl.previousElementSibling;
+          if(!prevHeader || !prevHeader.classList.contains('vi-injected-header')){
+            const hdr = document.createElement('div');
+            hdr.className = 'vi-injected-header';
+            hdr.textContent = '▸ INJECTED VULNERABILITIES';
+            histEl.parentNode.insertBefore(hdr, histEl);
+          }
+          // Append new item
+          const h = injectionHistory[vmName][injectionHistory[vmName].length-1];
+          const item = document.createElement('div');
+          item.className = 'vi-injected-item';
+          item.innerHTML = `<span class="vi-sev-label ${sevClass(h.severity)}">${h.severity.toUpperCase()}</span><span class="vi-injected-name">${esc(h.name)}</span><span class="vi-injected-time">${h.time}</span>`;
+          histEl.appendChild(item);
+
+          // Update card header badge
+          const cardHeader = document.querySelector(`#${cardId} .vi-card-status`);
+          if(cardHeader){
+            const cnt = injectionHistory[vmName].length;
+            const badge = cardHeader.querySelector('.vi-vuln-badge');
+            if(badge){ badge.textContent = `⚠ ${cnt} VULN${cnt>1?'S':''}`; }
+            else{
+              const b = document.createElement('div');
+              b.className = 'vi-vuln-badge';
+              b.style = "font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--warn);letter-spacing:1px;margin-top:4px;";
+              b.textContent = `⚠ ${cnt} VULN${cnt>1?'S':''}`;
+              cardHeader.appendChild(b);
+            }
+          }
+        }
+      }, 1200);
+    }
+  };
+
+  ws.onerror = () => {
+    const line = document.createElement('div');
+    line.className = 'vi-terminal-line err';
+    line.textContent = '> [ERROR] WebSocket connection failed';
+    term.appendChild(line);
+    sel.disabled = false;
+    if(btn){ btn.disabled = false; btn.classList.remove('launching'); btn.textContent = '⚡ LAUNCH INJECTION'; }
+    if(card) card.classList.remove('injecting');
+  };
+}
+
+function launchPatch(vmName, vmIp, vmType){
+  const safeId  = vmName.replace(/[^a-z0-9]/gi,'-');
+  const ptermId = `vi-pterm-${safeId}`;
+  const btnId   = `vi-patch-${safeId}`;
+  const cardId  = `vi-card-${safeId}`;
+  const pterm   = document.getElementById(ptermId);
+  const btn     = document.getElementById(btnId);
+  const card    = document.getElementById(cardId);
+  if(!pterm) return;
+
+  // Resolve the correct patch vm_type so the backend selects the right script:
+  //   addc             → patch_addc.ps1
+  //   windows / win10  → patch_windows_client.ps1
+  //   linux-1 or ubu   → patch_linux_clients.sh
+  //   web / db / ftp / wazuh / linux / linux_server → patch_linux_servers.sh
+  let patchVmType;
+  const n = vmName.toLowerCase();
+  if(vmType === 'addc' || n.includes('addc')){
+    patchVmType = 'addc';
+  } else if(vmType === 'windows' || vmType === 'win10' || n.includes('win')){
+    patchVmType = 'win10';
+  } else if(n.includes('linux-') || vmType === 'ubu' || vmType === 'linux_client'){
+    // linux-1, linux-2 … are clients; servers are named web/db/ftp/wazuh
+    patchVmType = 'linux_client';
+  } else if(['web','db','ftp','wazuh'].includes(vmType)){
+    patchVmType = vmType;          // backend maps each to patch_linux_servers.sh
+  } else {
+    patchVmType = 'linux_server';  // safe fallback for any other linux server
+  }
+
+  if(btn){ btn.disabled=true; btn.classList.add('patching'); btn.textContent='⟳ PATCHING...'; }
+  pterm.className = 'vi-terminal active';
+  pterm.innerHTML = `<div class="vi-terminal-line info">▸ RUNNING PATCH SCRIPT ON ${vmIp}</div>`;
+
+  const proto = location.protocol==='https:'?'wss':'ws';
+  const ws    = new WebSocket(`${proto}://${location.host}/ws/patch`);
+
+  ws.onopen = () => { ws.send(JSON.stringify({target_host:vmName, vm_type:patchVmType})); };
+
+  ws.onmessage = (e) => {
+    let d; try{ d=JSON.parse(e.data); }catch{ return; }
+    if(d.log){
+      const cls = d.log.includes('[+]')||d.log.match(/ok|complete/i) ? 'ok'
+                : d.log.includes('[!]')||d.log.match(/error|failed/i) ? 'err' : 'info';
+      const line = document.createElement('div');
+      line.className = `vi-terminal-line ${cls}`;
+      line.textContent = '> ' + d.log;
+      pterm.appendChild(line);
+      pterm.scrollTop = pterm.scrollHeight;
+    }
+    if(d.complete){
+      const success = d.success !== false;
+      const summary = document.createElement('div');
+      summary.className = `vi-terminal-line ${success?'done-ok':'done-fail'}`;
+      summary.textContent = success ? `✔ PATCH COMPLETE — ${vmName}` : `✘ PATCH FAILED`;
+      pterm.appendChild(summary);
+      pterm.scrollTop = pterm.scrollHeight;
+      setTimeout(()=>{
+        if(btn){ btn.disabled=false; btn.classList.remove('patching'); btn.textContent='🛡 PATCH ALL'; }
+        if(card) card.classList.remove('injecting');
+      }, 1200);
+    }
+  };
+
+  ws.onerror = () => {
+    const line = document.createElement('div');
+    line.className = 'vi-terminal-line err';
+    line.textContent = '> [ERROR] WebSocket connection failed';
+    pterm.appendChild(line);
+    if(btn){ btn.disabled=false; btn.classList.remove('patching'); btn.textContent='🛡 PATCH ALL'; }
+  };
+}
+
+function detectServerType(name){
+  const n = name.toLowerCase();
+  if(n.includes('web'))   return 'web';
+  if(n.includes('db'))    return 'db';
+  if(n.includes('ftp'))   return 'ftp';
+  if(n.includes('wazuh')) return 'wazuh';
+  return 'ubu';
+}
+
+// ════════════════════════════════════════════════════════════
+// DESTROY
+// ════════════════════════════════════════════════════════════
+function openDestroyModal(){ document.getElementById('confirmModal').classList.add('show'); }
+function closeModal(){ document.getElementById('confirmModal').classList.remove('show'); }
+
+async function confirmDestroy(){
+  closeModal();
+  // Bug 2 fix: clear ALL state so sidebar unlocks immediately
+  state.rangeRunning = false;
+  state.activeExercise = null;
+  localStorage.removeItem('activeExercise');
+  lastStatusData = [];                          // clear VM list so sidebar unlocks
+  updateSidebarLockState();                     // now properly unlocks
+  document.getElementById('rangeBadge').style.display = 'none';
+  document.getElementById('vulnPage').classList.remove('show');
+  document.getElementById('vulnInjectBtnWrapper').style.display = 'none';
+  document.getElementById('dashVulnInjectBtnWrapper').style.display = 'none';
+  document.getElementById('statusMsg').textContent = 'DESTROYING INFRASTRUCTURE...';
+  setPipelineStep('reset');
+  document.getElementById('pipelineBanner').style.display = 'flex';
+  await fetch('/api/exercise/stop', {method:'POST'});
+  openWebSocket('destroy');
+  navigate('activeRange');
+  syncDashboard();
+}
+
+// ════════════════════════════════════════════════════════════
+// STATUS POLLING
+// ════════════════════════════════════════════════════════════
+async function loadStatus(){
+  try {
+    const r    = await fetch('/status');
+    const data = await r.json();
+    if(!Array.isArray(data)) return;
+    lastStatusData = data;
+    if(document.getElementById('schemaPage').classList.contains('show')) renderSchema();
+    updateVmTable('vmTableBody', data);
+    updateVmTable('dashVmTable', data);
+    document.getElementById('dashVmCount').textContent = data.length;
+    if(data.length > 0 && !state.rangeRunning){
+      state.rangeRunning = true;
+      updateSidebarLockState();
+      syncDashboard();
+    }
+    // Show inject button whenever VMs are running (also handles page refresh)
+    if(data.length > 0){
+      document.getElementById('vulnInjectBtnWrapper').style.display = 'block';
+      document.getElementById('dashVulnInjectBtnWrapper').style.display = 'block';
+    }
+    // Bug 2 fix: when VMs are gone (after destroy), unlock sidebar
+    if(data.length === 0 && state.rangeRunning){
+      state.rangeRunning = false;
+      updateSidebarLockState();
+      syncDashboard();
+    }
+    // Hide vuln button/panel when no VMs running
+    if(data.length === 0){
+      document.getElementById('vulnInjectBtnWrapper').style.display = 'none';
+      document.getElementById('vulnPage').classList.remove('show');
+      document.getElementById('dashVulnInjectBtnWrapper').style.display = 'none';
+    }
+  } catch(e){ console.warn('Status fetch failed:', e); }
+}
+
+function updateVmTable(tbodyId, data){
+  const tbody = document.getElementById(tbodyId);
+  if(!tbody) return;
+  if(data.length === 0){
+    tbody.innerHTML = `<tr><td colspan="3" class="no-data">NO ACTIVE NODES</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map(vm=>{
+    const stCls = vm.status==='running'?'badge-running':vm.status==='stopped'?'badge-stopped':'badge-other';
+    let ipCell = vm.ip==='BOOTING' ? `<span class="ip-booting">⟳ BOOTING</span>` :
+                 vm.ip==='STOPPED' ? `<span class="ip-stopped">— STOPPED</span>` : esc(vm.ip);
+    return `<tr><td>${esc(vm.name)}</td><td>${ipCell}</td><td><span class="status-badge ${stCls}">${esc(vm.status.toUpperCase())}</span></td></tr>`;
+  }).join('');
+}
+
+function syncDashboard(){
+  updateSidebarLockState();
+  const running = state.rangeRunning || lastStatusData.length > 0;
+  const dot  = document.getElementById('dashStateDot');
+  const text = document.getElementById('dashStateText');
+  const destroyBtn = document.getElementById('dashDestroyBtn');
+  const exCard     = document.getElementById('dashExerciseCard');
+
+  if(running){
+    dot.style.background = 'var(--accent2)';
+    dot.style.boxShadow  = '0 0 8px var(--accent2)';
+    dot.style.animation  = 'pulse 2s ease-in-out infinite';
+    text.textContent     = 'RUNNING';
+    text.style.color     = 'var(--accent2)';
+    destroyBtn.style.display = 'block';
+    if(state.activeExercise){
+      document.getElementById('dashExName').textContent = state.activeExercise.name || '—';
+      exCard.style.display = 'block';
+      document.getElementById('dashExerciseDetails').innerHTML = `
+        <div class="summary-row"><span class="summary-label">NAME</span><span class="summary-value">${esc(state.activeExercise.name||'')}</span></div>
+        <div class="summary-row"><span class="summary-label">COURSE</span><span class="summary-value">${esc(state.activeExercise.course||'')}</span></div>
+        <div class="summary-row" style="border-bottom:none;"><span class="summary-label">DURATION</span><span class="summary-value">${esc(state.activeExercise.duration||'')}</span></div>`;
+    }
+  } else {
+    dot.style.background = 'var(--text-dim)';
+    dot.style.boxShadow  = 'none';
+    dot.style.animation  = 'none';
+    text.textContent     = 'IDLE';
+    text.style.color     = 'var(--text)';
+    destroyBtn.style.display = 'none';
+    exCard.style.display     = 'none';
+    document.getElementById('dashExName').textContent = '—';
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// PROGRESS / PIPELINE
+// ════════════════════════════════════════════════════════════
+function setPipelineStep(step){
+  const steps = ['ps-tf','ps-inv','ps-ans','ps-done'];
+  const map   = {terraform:0,inventory:1,ansible:2,done:3};
+  steps.forEach((id,i)=>{
+    const el = document.getElementById(id);
+    el.classList.remove('active','done','ansible-active');
+    if(step==='reset') return;
+    const t = map[step];
+    if(i<t)  el.classList.add('done');
+    if(i===t) el.classList.add(step==='ansible'?'ansible-active':'active');
+  });
+}
+
+function updateProgress(val, isAnsible){
+  val = Math.min(100,Math.max(0,val));
+  const circumference = 2*Math.PI*52;
+  document.getElementById('radialFill').style.strokeDashoffset = circumference - (val/100)*circumference;
+  document.getElementById('radialPct').textContent = val+'%';
+  document.getElementById('barFill').style.width   = val+'%';
+  document.getElementById('barPct').textContent    = val+'%';
+  const fill = document.getElementById('radialFill');
+  const bar  = document.getElementById('barFill');
+  if(isAnsible){
+    fill.style.stroke    = 'var(--ansible2)';
+    bar.style.background = 'linear-gradient(90deg,var(--ansible),var(--ansible2))';
+    document.getElementById('radialPct').style.color = 'var(--ansible2)';
+  } else {
+    fill.style.stroke    = 'var(--accent)';
+    bar.style.background = 'linear-gradient(90deg,var(--accent2),var(--accent))';
+    document.getElementById('radialPct').style.color = 'var(--accent)';
+  }
+  const phases = [
+    {id:'ph-init',min:1,max:9,tf:true},{id:'ph-plan',min:10,max:29,tf:true},
+    {id:'ph-apply',min:30,max:99,tf:true},{id:'ph-inv',min:100,max:100,tf:true},
+    {id:'ph-ansible',min:1,max:99,tf:false},{id:'ph-done',min:100,max:100,tf:false},
+  ];
+  phases.forEach(p=>{
+    if((p.tf && isAnsible) || (!p.tf && !isAnsible)) return;
+    const el = document.getElementById(p.id);
+    el.classList.remove('active','done','ansible-active');
+    if(val>=p.max)      el.classList.add('done');
+    else if(val>=p.min) el.classList.add(p.id==='ph-ansible'?'ansible-active':'active');
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// SCHEMA
+// ════════════════════════════════════════════════════════════
+function showSchema(){ document.getElementById('schemaPage').classList.add('show'); renderSchema(); }
+function hideSchema(){ document.getElementById('schemaPage').classList.remove('show'); }
+
+function renderSchema(){
+  const red     = lastStatusData.filter(v=>v.type==='kali');
+  const servers = lastStatusData.filter(v=>v.type==='server' || v.name.toLowerCase().includes('addc'));
+  const clients = lastStatusData.filter(v=>(v.type==='linux'||v.type==='windows') && !v.name.toLowerCase().includes('addc'));
+  const emptyHtml = '<div style="text-align:center;color:var(--text-dim);font-family:\'Share Tech Mono\',monospace;font-size:11px;padding:30px;letter-spacing:2px;">No nodes deployed</div>';
+  document.getElementById('schemaRed').innerHTML          = red.length     ? red.map(nodeCardHTML).join('')     : emptyHtml;
+  document.getElementById('schemaBlueServers').innerHTML  = servers.length ? servers.map(nodeCardHTML).join('') : emptyHtml;
+  document.getElementById('schemaBlueClients').innerHTML  = clients.length ? clients.map(nodeCardHTML).join('') : emptyHtml;
+}
+
+function nodeCardHTML(vm){
+  let ipClass='',ipText=vm.ip;
+  if(vm.ip==='BOOTING'){ipClass='ip-booting';ipText='⟳ BOOTING';}
+  else if(vm.ip==='STOPPED'){ipClass='ip-stopped';ipText='— STOPPED';}
+  const stCls = vm.status==='running'?'ns-running':vm.status==='stopped'?'ns-stopped':'';
+  const redCls = vm.type==='kali' ? ' node-red' : '';
+  return `<div class="node-card${redCls}">
+    <img class="node-icon" src="${iconForType(vm.type,vm.name)}" alt=""/>
+    <div class="node-info">
+      <div class="node-name">${esc(vm.name)}</div>
+      <div class="node-ip ${ipClass}">${esc(ipText)}</div>
+    </div>
+    <span class="node-state ${stCls}">${esc(vm.status.toUpperCase())}</span>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════════════════════
+function logTo(terminalId, msg, extraClass=''){
+  const t = document.getElementById(terminalId);
+  if(!t) return;
+  const d = document.createElement('div');
+  d.className = 'log-line '+(extraClass||'');
+  if(!extraClass){
+    if(/error|failed|fatal/i.test(msg)) d.classList.add('err');
+    else if(/complete|success|ok=/i.test(msg)) d.classList.add('ok');
+  }
+  d.textContent = '> '+msg;
+  t.appendChild(d);
+  t.scrollTop = t.scrollHeight;
+}
+
+function classifyAnsLine(line){
+  const l = line.toLowerCase();
+  if(l.startsWith('play ['))   return 'play';
+  if(l.startsWith('task ['))   return 'task';
+  if(/^ok:/.test(l))           return 'ans-ok';
+  if(/^changed:/.test(l))     return 'changed';
+  if(/^failed:/.test(l))      return 'err';
+  if(l.includes('play recap')) return 'recap';
+  if(/error|fatal/i.test(l))  return 'err';
+  return '';
+}
+
+function iconForType(type, name){
+  const n = (name||'').toLowerCase();
+  if(type==='kali')                        return '/static/kali.png';
+  if(type==='windows')                     return '/static/windows-10.png';
+  if(n.includes('wazuh'))                  return '/static/Wazuh-orig.png';
+  if(n.includes('web'))                    return '/static/apache.png';
+  if(n.includes('db')||n.includes('maria'))return '/static/mariadb.png';
+  if(n.includes('ftp'))                    return '/static/ftp.png';
+  return '/static/linux.png';
+}
+
+function esc(str){
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Sidebar nav — wire up all data-screen items
+document.querySelectorAll('.nav-item[data-screen]').forEach(el => {
+  el.addEventListener('click', () => {
+    const target = el.getAttribute('data-screen');
+    if(el.classList.contains('locked')) return;
+    navigate(target);
+  });
+});
+
+// Enter key on login
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && document.getElementById('loginView').style.display==='flex'){
+    handleLogin();
+  }
+});
+</script>
+</body>
+</html>
